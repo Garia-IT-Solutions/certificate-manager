@@ -3,6 +3,10 @@
 # dependencies
 /node_modules
 
+# python
+/__pycache__/
+*.pyc
+
 # next.js
 /.next/
 /out/
