@@ -7,8 +7,10 @@ def create_certificate(cert: CertificateCreate) -> Certificate:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO certificates (name, domain, issue_date, expiry_date, status) VALUES (?, ?, ?, ?, ?)',
-        (cert.name, cert.domain, cert.issue_date, cert.expiry_date, cert.status)
+        '''INSERT INTO certificates (cert, certType, issuedBy, status, expiry, certName, issueDate, uploadDate, hidden) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (cert.cert, cert.certType, cert.issuedBy, cert.status, cert.expiry.isoformat(), 
+         cert.certName, cert.issueDate.isoformat(), cert.uploadDate.isoformat(), cert.hidden)
     )
     cert_id = cursor.lastrowid
     conn.commit()
@@ -37,7 +39,7 @@ def delete_certificate(cert_id: int) -> bool:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM certificates WHERE id = ?', (cert_id,))
-    changes = conn.total_changes
     conn.commit()
+    changes = cursor.rowcount
     conn.close()
     return changes > 0

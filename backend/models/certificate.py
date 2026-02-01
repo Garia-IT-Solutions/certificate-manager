@@ -1,12 +1,16 @@
+from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional
 
 class CertificateCreate(BaseModel):
-    name: str
-    domain: str
-    issue_date: str
-    expiry_date: str
-    status: str
+    cert: bytes
+    certType: str 
+    issuedBy: str
+    status: str # enum["EXPIRING", "VALID", "INVALID"]
+    expiry: datetime
+    certName: str
+    issueDate: datetime
+    uploadDate: datetime
+    hidden: bool
 
 class Certificate(CertificateCreate):
     id: int

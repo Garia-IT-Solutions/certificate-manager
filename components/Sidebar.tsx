@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Ship, 
-  FileText, 
-  Award, 
-  Anchor 
+import {
+  LayoutDashboard,
+  Ship,
+  FileText,
+  Award,
+  Anchor
 } from "lucide-react";
 
 const navItems = [
@@ -26,7 +26,7 @@ export function AppSidebar() {
   return (
     <div className={cn(
       "flex h-screen w-64 flex-col border-r transition-colors",
-      theme === "dark" 
+      theme === "dark"
         ? "border-zinc-700 bg-zinc-900 text-zinc-50"
         : "border-zinc-700 bg-zinc-900 text-zinc-50"
     )}>
@@ -54,19 +54,19 @@ export function AppSidebar() {
               href={item.href}
               className={cn(
                 "group flex items-center gap-3 px-4 py-3 text-sm transition-all rounded-lg",
-                isActive 
+                isActive
                   ? "bg-zinc-800 shadow-sm ring-1 ring-zinc-700"
                   : "hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50"
               )}
             >
-              <item.icon 
-                size={16} 
+              <item.icon
+                size={16}
                 className={cn(
                   "transition-colors",
-                  isActive 
+                  isActive
                     ? "text-[#FF3300]"
                     : "text-zinc-500 group-hover:text-zinc-50"
-                )} 
+                )}
               />
               <span className={cn(
                 "font-mono text-xs uppercase tracking-wide",
@@ -74,7 +74,7 @@ export function AppSidebar() {
               )}>
                 {item.name}
               </span>
-              
+
               {/* Active Indicator Dot */}
               {isActive && (
                 <div className="ml-auto h-1.5 w-1.5 rounded-full bg-[#FF3300]" />
@@ -85,17 +85,20 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer Profile */}
-      <div className={cn(
-        "p-6 border-t border-zinc-700"
+      <Link href="/dashboard/profile" className={cn(
+        "block p-6 border-t border-zinc-700 hover:bg-zinc-800/50 transition-colors group"
       )}>
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full border bg-zinc-800 border-zinc-700" />
+          <div className="h-9 w-9 rounded-full border bg-zinc-800 border-zinc-700 overflow-hidden flex items-center justify-center">
+            {/* Simple Avatar Placeholder */}
+            <div className="h-full w-full bg-gradient-to-tr from-zinc-700 to-zinc-600" />
+          </div>
           <div>
-            <p className="font-mono text-xs font-bold uppercase">Cpt. User</p>
-            <p className="font-mono text-[10px] text-zinc-500">ID: 8842-A</p>
+            <p className="font-mono text-xs font-bold uppercase group-hover:text-white transition-colors">Cpt. User</p>
+            <p className="font-mono text-[10px] text-zinc-500 group-hover:text-zinc-400">View Profile</p>
           </div>
         </div>
-      </div>
+      </Link>
     </div>
   );
 }

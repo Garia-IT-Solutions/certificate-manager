@@ -1,0 +1,54 @@
+Documents
+- id: int AUTO INCR PK(2014)
+- docID: str
+- doc: blob
+- docType: str (passport, drivers license (2020))
+- category: str (medical, safety, travel, tech, identity)
+- status: enum["EXPIRING", "VALID", "INVALID"]
+- expiry: dateTime
+- docName: str
+- issueDate: dateTime
+- uploadDate: dateTime
+- hidden: bool
+
+
+SeaTimeLog
+- id: int
+- imo: int
+- offNo: int
+- flag: enum # litewawy countries
+- vesselName: str
+- type: enum
+- company: str
+- mainEngine: str
+- bhp: float
+- torque: float
+- dwt: float
+- rank: enum
+- signOn: date
+- signOff: date
+- uploadDate: dateTime TIMESTAMP
+
+homepage yen mathidiya
+
+Certificate
+- id: int AUTO INCR PK(2014)
+- cert: blob
+- # docType: str (passport, drivers license (2020))
+- issuedBy: str
+- status: enum["EXPIRING", "VALID", "INVALID"]
+- expiry: dateTime
+- certName: str
+- issueDate: dateTime
+- uploadDate: dateTime
+- hidden: bool
+
+
+Profile
+- id: int
+- fname: str
+- lname: str
+- phone: str
+- pfp: blob
+- skills: list
+- hmph!

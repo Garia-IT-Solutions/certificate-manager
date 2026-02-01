@@ -1,17 +1,18 @@
 "use client";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { api } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "sonner";
-import { 
-  Award, 
-  Search, 
-  Plus, 
-  FileText, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Clock, 
-  Download, 
-  Trash2, 
+import {
+  Award,
+  Search,
+  Plus,
+  FileText,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Download,
+  Trash2,
   Eye,
   UploadCloud,
   X,
@@ -29,18 +30,13 @@ interface Certificate {
   issueDate: string;
   expiryDate: string;
   status: "VALID" | "EXPIRING" | "EXPIRED";
-  fileUrl?: string; 
+  fileUrl?: string;
   fileName?: string;
 }
 
 
-const INITIAL_DATA: Certificate[] = [
-  { id: 1, name: "STCW Basic Safety Training", issuer: "Maritime Training Inst.", issueDate: "2023-01-15", expiryDate: "2028-01-15", status: "VALID", fileName: "STCW_Basic.pdf" },
-  { id: 2, name: "Medical Fitness (ENG1)", issuer: "Dr. A. Smith", issueDate: "2023-03-10", expiryDate: "2024-03-15", status: "EXPIRING", fileName: "Medical_ENG1.pdf" },
-  { id: 3, name: "GMDSS General Operator", issuer: "FCC", issueDate: "2019-06-01", expiryDate: "2024-06-01", status: "VALID", fileName: "GMDSS.pdf" },
-  { id: 4, name: "Advanced Fire Fighting", issuer: "Fire Safety Acad.", issueDate: "2018-11-20", expiryDate: "2023-11-20", status: "EXPIRED", fileName: "Fire_Fighting.pdf" },
-  { id: 5, name: "Radar Observer (Unlimited)", issuer: "Nav Center", issueDate: "2022-02-14", expiryDate: "2027-02-14", status: "VALID", fileName: "Radar_Observer.pdf" },
-];
+
+const INITIAL_DATA: Certificate[] = [];
 
 function getDaysUntilExpiry(expiryDate: string): number {
   const today = new Date();
@@ -324,6 +320,36 @@ export default function CertificatesPage() {
   const [showViewer, setShowViewer] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
 
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  const loadCertificates = async () => {
+    try {
+      const data = await api.getCertificates();
+      // Map backend data to frontend model if necessary
+      // Assuming backend `certName` -> frontend `name`
+      // Assuming backend `certType` -> frontend `name` or `issuer` (adjust as needed)
+      // Check backend response structure from `certificate_controller.py`:
+      // keys: id, cert (blob), certType, issuedBy, status, expiry, certName, issueDate, uploadDate, hidden
+
+      const mapped = data.map((c: any) => ({
+        id: c.id,
+        name: c.certName || "Untitled Certificate",
+        issuer: c.issuedBy || "Unknown Issuer",
+        issueDate: c.issueDate || new Date().toISOString(),
+        expiryDate: c.expiry || new Date().toISOString(),
+        status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
+        fileName: (c.certName || "certificate") + ".pdf", // Placeholder if filename not stored separately
+        fileUrl: "" // Blob handling might be needed, for now empty
+      }));
+      setCertificates(mapped);
+    } catch (error) {
+      console.error("Failed to load certificates:", error);
+      toast.error("Failed to load certificates");
+    }
+  };
+
 
   const filteredCerts = useMemo(() => {
     return certificates.filter((cert) => {
@@ -343,20 +369,44 @@ export default function CertificatesPage() {
     EXPIRED: certificates.filter((c) => c.status === "EXPIRED").length,
   };
 
-  const handleUpload = (file: File) => {
-    const newCert: Certificate = {
-      id: Math.max(...certificates.map((d) => d.id), 0) + 1,
-      name: file.name.replace(/\.[^/.]+$/, ""), 
-      issuer: "Uploaded System",
-      issueDate: new Date().toISOString().split("T")[0],
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], 
-      status: "VALID",
-      fileName: file.name,
-      fileUrl: URL.createObjectURL(file), 
-    };
+  const handleUpload = async (file: File) => {
+    try {
+      // Convert file to base64 or blob if needed by backend, 
+      // EXCEPT the current backend `CertificateCreate` expects `cert: bytes`.
+      // Python `bytes` in Pydantic usually expects a base64 encoded string or similar if JSON.
+      // However, `certificate_controller.py` uses `cert.cert` (bytes).
+      // Let's assume we send JSON with base64 encoded string for `cert`.
 
-    setCertificates((prev) => [newCert, ...prev]);
-    toast.success(`${file.name} uploaded successfully!`);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const result = reader.result as string;
+        const base64Content = result.includes(',') ? result.split(',')[1] : "";
+
+        // Calculate status/expiry logic if not done by backend
+        // Backend expects: cert, certType, issuedBy, status, expiry, certName, issueDate, uploadDate, hidden
+
+        const newCertData = {
+          cert: base64Content, // sending base64
+          certType: "Type", // You might want to ask user for this
+          issuedBy: "Self Upload",
+          status: "VALID",
+          expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          certName: file.name.replace(/\.[^/.]+$/, ""),
+          issueDate: new Date().toISOString(),
+          uploadDate: new Date().toISOString(),
+          hidden: false
+        };
+
+        await api.createCertificate(newCertData);
+        toast.success(`${file.name} uploaded successfully!`);
+        loadCertificates();
+      };
+      reader.readAsDataURL(file);
+
+    } catch (error) {
+      console.error("Upload failed", error);
+      toast.error("Upload failed");
+    }
   };
 
   const handleDeleteClick = (id: number) => {
@@ -367,14 +417,20 @@ export default function CertificatesPage() {
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (certToDelete !== null) {
-      const deletedCert = certificates.find((c) => c.id === certToDelete);
-      setCertificates((prev) => prev.filter((c) => c.id !== certToDelete));
-      setSelectedCert(null);
-      setShowDeleteConfirm(false);
-      setCertToDelete(null);
-      toast.error(`${deletedCert?.name} has been deleted.`);
+      try {
+        await api.deleteCertificate(certToDelete);
+        const deletedCert = certificates.find((c) => c.id === certToDelete);
+
+        setCertificates((prev) => prev.filter((c) => c.id !== certToDelete));
+        setSelectedCert(null);
+        setShowDeleteConfirm(false);
+        setCertToDelete(null);
+        toast.error(`${deletedCert?.name} has been deleted.`);
+      } catch (error) {
+        toast.error("Failed to delete certificate");
+      }
     }
   };
 
@@ -533,10 +589,10 @@ export default function CertificatesPage() {
 
                   <div className={cn(
                     "absolute top-0 left-0 w-1 h-full transition-colors duration-300",
-                    cert.status === 'EXPIRED' ? "bg-red-500" : 
-                    cert.status === 'EXPIRING' ? "bg-amber-500" : "bg-emerald-500"
+                    cert.status === 'EXPIRED' ? "bg-red-500" :
+                      cert.status === 'EXPIRING' ? "bg-amber-500" : "bg-emerald-500"
                   )} />
-                  
+
                   <div className="relative flex flex-col md:grid md:grid-cols-[1fr_auto_auto] gap-6 p-6 items-start md:items-center pl-8">
                     <div className="flex items-center gap-4 w-full">
                       <div className={cn(
@@ -544,8 +600,8 @@ export default function CertificatesPage() {
                         cert.status === "EXPIRED"
                           ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400"
                           : cert.status === "EXPIRING"
-                          ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400"
-                          : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400"
+                            : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400"
                       )}>
                         <Award size={24} strokeWidth={1.5} />
                       </div>
@@ -566,27 +622,27 @@ export default function CertificatesPage() {
 
                     <div className="flex items-center gap-6 min-w-[240px] justify-end">
                       <div className="flex flex-col items-end">
-                         <span className={cn(
-                            "text-[10px] font-bold uppercase tracking-wide mb-1",
-                            cert.status === 'EXPIRED' ? "text-red-500" :
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase tracking-wide mb-1",
+                          cert.status === 'EXPIRED' ? "text-red-500" :
                             cert.status === 'EXPIRING' ? "text-amber-500" :
-                            "text-zinc-400"
-                          )}>
-                             {cert.status === 'EXPIRED' ? `Expired ${Math.abs(daysLeft)} days ago` : 
-                              cert.status === 'EXPIRING' ? `Expires in ${daysLeft} days` : 
+                              "text-zinc-400"
+                        )}>
+                          {cert.status === 'EXPIRED' ? `Expired ${Math.abs(daysLeft)} days ago` :
+                            cert.status === 'EXPIRING' ? `Expires in ${daysLeft} days` :
                               "Valid Certificate"
-                             }
-                          </span>
+                          }
+                        </span>
 
-                          <div className={cn("flex items-baseline gap-1.5", 
-                              cert.status === 'EXPIRED' ? "opacity-60 grayscale" : ""
-                          )}>
-                            <span className="text-3xl font-bold font-mono tracking-tighter text-zinc-900 dark:text-white">{dateParts.day}</span>
-                            <span className="text-sm font-bold uppercase text-zinc-500">{dateParts.month}</span>
-                            <span className="text-sm font-light text-zinc-400">{dateParts.year}</span>
-                          </div>
+                        <div className={cn("flex items-baseline gap-1.5",
+                          cert.status === 'EXPIRED' ? "opacity-60 grayscale" : ""
+                        )}>
+                          <span className="text-3xl font-bold font-mono tracking-tighter text-zinc-900 dark:text-white">{dateParts.day}</span>
+                          <span className="text-sm font-bold uppercase text-zinc-500">{dateParts.month}</span>
+                          <span className="text-sm font-light text-zinc-400">{dateParts.year}</span>
+                        </div>
                       </div>
-                      
+
                       <div className="hidden md:block">
                         <StatusBadge status={cert.status} />
                       </div>
@@ -594,7 +650,7 @@ export default function CertificatesPage() {
 
                     {/* RIGHT: Actions */}
                     <div className="flex items-center justify-end gap-1 md:border-l md:border-zinc-200 md:dark:border-zinc-800 md:pl-6">
-                       {/* Mobile Badge only */}
+                      {/* Mobile Badge only */}
                       <div className="md:hidden mr-auto">
                         <StatusBadge status={cert.status} />
                       </div>
