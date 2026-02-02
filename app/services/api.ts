@@ -1,12 +1,47 @@
-
 import { SYSTEM_CONFIG } from "@/lib/config";
 
 const API_URL = SYSTEM_CONFIG.app.apiBaseUrl;
+const getHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 export const api = {
+    // AUTH
+    login: async (credentials: any) => {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(credentials),
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.detail || "Login failed");
+        }
+        return res.json();
+    },
+
+    register: async (data: any) => {
+        const res = await fetch(`${API_URL}/auth/register`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.detail || "Registration failed");
+        }
+        return res.json();
+    },
+
     // CERTIFICATES
     getCertificates: async () => {
-        const res = await fetch(`${API_URL}/certificates`);
+        const res = await fetch(`${API_URL}/certificates`, {
+            headers: getHeaders(),
+        });
         if (!res.ok) throw new Error("Failed to fetch certificates");
         return res.json();
     },
@@ -14,7 +49,7 @@ export const api = {
     createCertificate: async (data: any) => {
         const res = await fetch(`${API_URL}/certificates`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders(),  
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error("Failed to create certificate");
@@ -24,6 +59,7 @@ export const api = {
     deleteCertificate: async (id: number) => {
         const res = await fetch(`${API_URL}/certificates/${id}`, {
             method: "DELETE",
+            headers: getHeaders(),
         });
         if (!res.ok) throw new Error("Failed to delete certificate");
         return true;
@@ -31,7 +67,9 @@ export const api = {
 
     // DOCUMENTS
     getDocuments: async () => {
-        const res = await fetch(`${API_URL}/documents`);
+        const res = await fetch(`${API_URL}/documents`, {
+            headers: getHeaders(),
+        });
         if (!res.ok) throw new Error("Failed to fetch documents");
         return res.json();
     },
@@ -39,7 +77,7 @@ export const api = {
     createDocument: async (data: any) => {
         const res = await fetch(`${API_URL}/documents`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders(),
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error("Failed to create document");
@@ -49,6 +87,7 @@ export const api = {
     deleteDocument: async (id: number) => {
         const res = await fetch(`${API_URL}/documents/${id}`, {
             method: "DELETE",
+            headers: getHeaders(),
         });
         if (!res.ok) throw new Error("Failed to delete document");
         return true;
@@ -56,7 +95,9 @@ export const api = {
 
     // SEA TIME LOGS
     getSeaTimeLogs: async () => {
-        const res = await fetch(`${API_URL}/seatimelogs`);
+        const res = await fetch(`${API_URL}/seatimelogs`, {
+            headers: getHeaders(),
+        });
         if (!res.ok) throw new Error("Failed to fetch sea time logs");
         return res.json();
     },
@@ -64,7 +105,7 @@ export const api = {
     createSeaTimeLog: async (data: any) => {
         const res = await fetch(`${API_URL}/seatimelogs`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders(),
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error("Failed to create sea time log");
@@ -74,6 +115,7 @@ export const api = {
     deleteSeaTimeLog: async (id: number) => {
         const res = await fetch(`${API_URL}/seatimelogs/${id}`, {
             method: "DELETE",
+            headers: getHeaders(),
         });
         if (!res.ok) throw new Error("Failed to delete sea time log");
         return true;
@@ -81,7 +123,9 @@ export const api = {
 
     // PROFILE
     getProfile: async () => {
-        const res = await fetch(`${API_URL}/profile`);
+        const res = await fetch(`${API_URL}/profile`, {
+            headers: getHeaders(),
+        });
         if (!res.ok) throw new Error("Failed to fetch profile");
         return res.json();
     },
@@ -89,7 +133,7 @@ export const api = {
     updateProfile: async (data: any) => {
         const res = await fetch(`${API_URL}/profile`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders(),
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error("Failed to update profile");

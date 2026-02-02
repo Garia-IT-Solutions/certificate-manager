@@ -1,5 +1,6 @@
 import sqlite3
 from sqlite3 import Connection
+from backend.utils.security import get_password_hash
 
 DATABASE_NAME = "certmanager.db"
 
@@ -40,9 +41,16 @@ def init_db():
             job_title TEXT DEFAULT '',
             bio TEXT DEFAULT '',
             avatar_url TEXT DEFAULT '',
-            skills TEXT DEFAULT '[]'
+            skills TEXT DEFAULT '[]',
+            password_hash TEXT DEFAULT ''
         )
     ''')
+    
+    # Check if password_hash column exists (migration)
+    cursor.execute("PRAGMA table_info(profiles)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'password_hash' not in columns:
+        cursor.execute("ALTER TABLE profiles ADD COLUMN password_hash TEXT DEFAULT ''")
     
     # Create Sea Time Logs Table
     cursor.execute('''
@@ -85,10 +93,11 @@ def init_db():
     # Seed Default Profile if empty
     cursor.execute('SELECT count(*) FROM profiles')
     if cursor.fetchone()[0] == 0:
+        default_password = get_password_hash("password123")
         cursor.execute('''
-            INSERT INTO profiles (first_name, last_name, email, phone, job_title, bio, skills)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('John', 'Doe', 'john.doe@example.com', '+1 (555) 0123', 'Marine Engineer', 'Experienced marine engineer with a passion for safety and compliance.', '["Safety Management", "Navigation", "First Aid"]'))
+            INSERT INTO profiles (first_name, last_name, email, phone, job_title, bio, skills, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', ('John', 'Doe', 'john.doe@example.com', '+1 (555) 0123', 'Marine Engineer', 'Experienced marine engineer with a passion for safety and compliance.', '["Safety Management", "Navigation", "First Aid"]', default_password))
 
     conn.commit()
     conn.close()

@@ -6,7 +6,6 @@ class ProfileBase(BaseModel):
     first_name: str
     last_name: str
     email: str
-    password: str
     dob: Optional[datetime] = None
     gender: Optional[str] = None
     phone: Optional[str] = None
@@ -18,7 +17,7 @@ class ProfileBase(BaseModel):
     certificates: List[int] = []
 
 class ProfileCreate(ProfileBase):
-    pass
+    password: str
 
 class ProfileUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -33,7 +32,7 @@ class ProfileUpdate(BaseModel):
     address: Optional[str] = None
     avatar_url: Optional[str] = None
     skills: Optional[List[str]] = None
-    certificates: Optional[List[int]] = None # allow to add only if valid cert
+    certificates: Optional[List[int]] = None
 
 class Profile(ProfileBase):
     id: int

@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog"
 import { Anchor, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { api } from "@/app/services/api"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -35,11 +37,16 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate login process
-    setTimeout(() => {
+    try {
+      const response = await api.login({ email, password })
+      localStorage.setItem("token", response.access_token)
+      toast.success("Login successful")
+      router.push("/dashboard")
+    } catch (error: any) {
+      toast.error(error.message || "Login failed")
+    } finally {
       setIsLoading(false)
-      router.push("/")
-    }, 1500)
+    }
   }
 
   const handleForgotPasswordSubmit = async () => {
@@ -165,8 +172,8 @@ export default function LoginPage() {
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
-                <Button variant="link" className="px-0 text-sm">
-                  Contact Administrator
+                <Button variant="link" className="px-0 text-sm" onClick={() => router.push("/register")}>
+                  Sign up
                 </Button>
               </p>
             </div>
