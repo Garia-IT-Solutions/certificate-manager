@@ -1,20 +1,43 @@
 from datetime import datetime, timedelta
 from typing import Optional, Union
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt  # We are replacing passlib with direct bcrypt usage
 
 # Configuration
 SECRET_KEY = "your-secret-key-keep-it-secret" # In production, use env var
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """
+    Verifies a plain password against a bcrypt hash.
+    Handles the conversion of strings to bytes automatically.
+    """
+    # bcrypt requires bytes, so we encode strings if necessary
+    if isinstance(hashed_password, str):
+        hashed_bytes = hashed_password.encode('utf-8')
+    else:
+        hashed_bytes = hashed_password
+        
+    plain_bytes = plain_password.encode('utf-8')
+    
+    try:
+        # Check the password
+        return bcrypt.checkpw(plain_bytes, hashed_bytes)
+    except ValueError:
+        # Handles invalid salts or malformed hashes gracefully
+        return False
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """
+    Hashes a password using bcrypt. Returns a string.
+    """
+    pwd_bytes = password.encode('utf-8')
+    # Generate a salt and hash the password
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    # Return as string for database storage
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

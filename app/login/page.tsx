@@ -1,281 +1,554 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Anchor, 
+  Lock, 
+  Mail, 
+  Waves, 
+  Wind, 
+  Eye,
+  EyeOff,
+  Loader2,
+  RefreshCcw,
+  ShieldCheck,
+  AlertCircle,
+  User, 
+  ArrowRight
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+// ✅ IMPORTING THE API SERVICE
+import { api } from "@/app/services/api"; 
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Anchor, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { api } from "@/app/services/api"
-import { toast } from "sonner"
+// --- LIVE CLOCK UTILITY ---
+function LiveTime() {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    // Set initial time to avoid hydration mismatch
+    setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    const timer = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return <span className="font-mono text-[10px] text-zinc-500">{time} UTC</span>;
+}
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false)
-  const [forgotPasswordStep, setForgotPasswordStep] = useState<"email" | "otp" | "newPassword">("email")
-  const [forgotEmail, setForgotEmail] = useState("")
-  const [otp, setOtp] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const router = useRouter();
+  
+  // --- STATES ---
+  const [mode, setMode] = useState<"login" | "reset" | "signup">("login");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [error, setError] = useState("");
+  const [shake, setShake] = useState(false);
+  
+  // Login Form States
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Signup Form States
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPass, setSignupPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+
+  // Reset Flow States
+  const [resetStep, setResetStep] = useState<"email" | "otp" | "newPassword">("email");
+  const [resetEmail, setResetEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newResetPass, setNewResetPass] = useState("");
+  const [confirmResetPass, setConfirmResetPass] = useState("");
+
+  // --- HANDLERS ---
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(""); 
 
     try {
-      const response = await api.login({ email, password })
-      localStorage.setItem("token", response.access_token)
-      toast.success("Login successful")
-      router.push("/dashboard")
-    } catch (error: any) {
-      toast.error(error.message || "Login failed")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      // ✅ REAL API CALL
+      const response = await api.login({ email, password });
+      
+      // Success Logic
+      localStorage.setItem("token", response.access_token);
+      if (rememberMe) localStorage.setItem("remembered_user", email);
 
-  const handleForgotPasswordSubmit = async () => {
-    if (forgotPasswordStep === "email") {
-      // Simulate sending OTP
+      setIsLoading(false); 
+      setIsRedirecting(true); // Trigger "Access Granted" Animation
+      
       setTimeout(() => {
-        setForgotPasswordStep("otp")
-      }, 1000)
-    } else if (forgotPasswordStep === "otp") {
-      // Simulate OTP verification
-      if (otp === "123456") {
-        setForgotPasswordStep("newPassword")
-      } else {
-        alert("Invalid OTP. Use 123456 for demo.")
-      }
-    } else if (forgotPasswordStep === "newPassword") {
-      if (newPassword === confirmPassword && newPassword.length >= 6) {
-        alert("Password reset successful!")
-        setIsForgotPasswordOpen(false)
-        setForgotPasswordStep("email")
-        setForgotEmail("")
-        setOtp("")
-        setNewPassword("")
-        setConfirmPassword("")
-      } else {
-        alert("Passwords don't match or are too short (min 6 characters)")
-      }
-    }
-  }
+        router.push("/dashboard");
+      }, 2000);
 
-  const resetForgotPassword = () => {
-    setForgotPasswordStep("email")
-    setForgotEmail("")
-    setOtp("")
-    setNewPassword("")
-    setConfirmPassword("")
-  }
+    } catch (err: any) {
+      // Error Logic
+      setIsLoading(false);
+      // Try to get the specific error message from the backend, otherwise default
+      const errMsg = err.response?.data?.detail || "Invalid credentials. Access Denied.";
+      setError(errMsg);
+      toast.error(errMsg);
+      
+      // Trigger Shake
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signupPass !== confirmPass) {
+        toast.error("Passwords do not match");
+        return;
+    }
+    
+    setIsLoading(true);
+    // Simulate Signup API (Replace with api.register if you have it)
+    setTimeout(() => {
+        setIsLoading(false);
+        toast.success("Crew member registered successfully");
+        setMode("login");
+    }, 1500);
+  };
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Using simulated delays for Reset Flow
+    setTimeout(() => {
+      setIsLoading(false);
+      
+      if (resetStep === "email") {
+        toast.info(`OTP sent to ${resetEmail}`);
+        setResetStep("otp");
+      } 
+      else if (resetStep === "otp") {
+        if (otp === "123456") {
+          setResetStep("newPassword");
+        } else {
+          toast.error("Invalid OTP. Use 123456 for demo.");
+        }
+      } 
+      else if (resetStep === "newPassword") {
+        if (newResetPass === confirmResetPass && newResetPass.length >= 6) {
+          toast.success("Password reset successful!");
+          setMode("login");
+          // Cleanup
+          setResetStep("email");
+          setResetEmail("");
+          setOtp("");
+          setNewResetPass("");
+          setConfirmResetPass("");
+        } else {
+          toast.error("Passwords don't match or are too short");
+        }
+      }
+    }, 1000);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border/40 bg-card/95 backdrop-blur-sm">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-                <Anchor className="h-6 w-6 text-primary-foreground" />
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-              <CardDescription>Sign in to your MarineTracker Pro account</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="engineer@maritime.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="remember"
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="remember" className="text-sm">
-                    Remember me
-                  </Label>
-                </div>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="px-0 text-sm"
-                  onClick={() => setIsForgotPasswordOpen(true)}
-                >
-                  Forgot password?
-                </Button>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
-                <Button variant="link" className="px-0 text-sm" onClick={() => router.push("/register")}>
-                  Sign up
-                </Button>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Forgot Password Dialog */}
-        <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {forgotPasswordStep !== "email" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      if (forgotPasswordStep === "otp") setForgotPasswordStep("email")
-                      else if (forgotPasswordStep === "newPassword") setForgotPasswordStep("otp")
-                    }}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                {forgotPasswordStep === "email" && "Reset Password"}
-                {forgotPasswordStep === "otp" && "Verify OTP"}
-                {forgotPasswordStep === "newPassword" && "Set New Password"}
-              </DialogTitle>
-              <DialogDescription>
-                {forgotPasswordStep === "email" && "Enter your email address to receive a reset code"}
-                {forgotPasswordStep === "otp" && "Enter the 6-digit code sent to your email"}
-                {forgotPasswordStep === "newPassword" && "Create a new password for your account"}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              {forgotPasswordStep === "email" && (
-                <div className="space-y-2">
-                  <Label htmlFor="forgot-email">Email Address</Label>
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    placeholder="engineer@maritime.com"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {forgotPasswordStep === "otp" && (
-                <div className="space-y-2">
-                  <Label htmlFor="otp">Verification Code</Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    maxLength={6}
-                  />
-                  <p className="text-xs text-muted-foreground">Code sent to {forgotEmail}. Use 123456 for demo.</p>
-                </div>
-              )}
-
-              {forgotPasswordStep === "newPassword" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      placeholder="Enter new password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm Password</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsForgotPasswordOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleForgotPasswordSubmit}>
-                {forgotPasswordStep === "email" && "Send Code"}
-                {forgotPasswordStep === "otp" && "Verify Code"}
-                {forgotPasswordStep === "newPassword" && "Reset Password"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="flex min-h-screen items-center justify-center p-4 font-sans relative">
+      
+      {/* Cinematic Spotlight */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[120px]" />
       </div>
+
+      <motion.div 
+        layout
+        // ✅ SAFE ANIMATION: Removed initial={{ opacity: 0 }} to prevent blank screen
+        animate={{ 
+          scale: 1, 
+          y: 0,
+          x: shake ? [-10, 10, -10, 10, 0] : 0 
+        }}
+        className="w-full max-w-[420px] relative z-10"
+      >
+        {/* --- MAIN TERMINAL CARD --- */}
+        <div className={cn(
+            "bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border rounded-[2rem] shadow-2xl overflow-hidden relative transition-colors duration-300",
+            error ? "border-red-500/50" : "border-zinc-200 dark:border-zinc-800"
+        )}>
+          
+          {/* Status Line */}
+          <div className={cn(
+            "absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent to-transparent opacity-50 transition-colors duration-500",
+            isRedirecting ? "via-emerald-500" : error ? "via-red-500" : mode === 'signup' ? "via-emerald-500" : mode === 'reset' ? "via-blue-500" : "via-orange-500"
+          )} />
+
+          <div className="p-8">
+            
+            {/* HEADER */}
+            <div className="text-center mb-8">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white mb-5 shadow-inner">
+                <Anchor size={28} strokeWidth={2} />
+              </div>
+              <h1 className="text-2xl font-light tracking-tighter text-zinc-900 dark:text-white mb-1">
+                Captain's<span className="font-bold">Log</span>
+              </h1>
+              
+              <div className="flex items-center justify-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-400">
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse transition-colors", 
+                  isRedirecting ? "bg-emerald-500" : error ? "bg-red-500" : mode === 'signup' ? "bg-emerald-500" : mode === 'reset' ? "bg-blue-500" : "bg-orange-500"
+                )} />
+                {isRedirecting ? "AUTHENTICATED" : error ? "ERROR" : mode === 'signup' ? "NEW ENTRY" : mode === 'reset' ? `RECOVERY: ${resetStep}` : "SYSTEM ONLINE"}
+              </div>
+            </div>
+
+            {/* DYNAMIC CONTENT AREA */}
+            <div className="min-h-[260px]"> 
+              <AnimatePresence mode="wait">
+                
+                {/* 1. SUCCESS / REDIRECTING VIEW */}
+                {isRedirecting ? (
+                   <motion.div
+                     key="success"
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     className="flex flex-col items-center justify-center h-full py-10"
+                   >
+                      <div className="h-20 w-20 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-6" />
+                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Access Granted</h3>
+                      <p className="text-xs text-zinc-500 font-mono mt-2 uppercase tracking-widest">Loading Dashboard...</p>
+                   </motion.div>
+                ) : (
+                
+                /* 2. LOGIN FORM */
+                mode === "login" && (
+                  <motion.form 
+                    key="login"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    onSubmit={handleLogin} 
+                    className="space-y-5"
+                  >
+                    {/* Error Banner */}
+                    {error && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 p-3 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400"
+                        >
+                            <AlertCircle size={16} />
+                            <span className="text-xs font-bold">{error}</span>
+                        </motion.div>
+                    )}
+
+                    <div className="space-y-4">
+                      {/* Email */}
+                      <div className="group">
+                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Captain's ID</label>
+                        <div className="relative">
+                          <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
+                            <Mail size={16} />
+                          </div>
+                          <input 
+                            type="email" 
+                            required 
+                            value={email}
+                            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                            placeholder="id@fleet.com" 
+                            className={cn(
+                                "w-full bg-zinc-50 dark:bg-zinc-900 border rounded-xl py-3.5 pl-10 pr-4 text-xs font-medium outline-none transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono",
+                                error 
+                                    ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20" 
+                                    : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password */}
+                      <div className="group">
+                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Passcode</label>
+                        <div className="relative">
+                          <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
+                            <Lock size={16} />
+                          </div>
+                          <input 
+                            type={showPassword ? "text" : "password"} 
+                            required 
+                            value={password}
+                            onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                            placeholder="••••••••" 
+                            className={cn(
+                                "w-full bg-zinc-50 dark:bg-zinc-900 border rounded-xl py-3.5 pl-10 pr-10 text-xs font-medium outline-none transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono",
+                                error 
+                                    ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20" 
+                                    : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
+                            )}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPassword(!showPassword)} 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                          >
+                            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Utils */}
+                    <div className="flex items-center justify-between px-1">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input 
+                            type="checkbox" 
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="accent-orange-500 h-3 w-3" 
+                        />
+                        <span className="text-[10px] font-medium text-zinc-500 group-hover:text-zinc-800 dark:group-hover:text-zinc-300 transition-colors">Keep signed in</span>
+                      </label>
+                      
+                      <button type="button" onClick={() => setMode("reset")} className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 hover:text-orange-500 transition-colors">
+                        Reset Passcode
+                      </button>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isLoading} 
+                      className="group relative w-full overflow-hidden rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black py-3.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Verifying...</span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">Initialize Session <ArrowRight size={14} /></span>
+                      )}
+                    </button>
+                    
+                    <div className="text-center pt-2">
+                       <button type="button" onClick={() => setMode("signup")} className="text-[10px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                          New here? <span className="underline decoration-zinc-300 underline-offset-2">Register Crew Member</span>
+                       </button>
+                    </div>
+                  </motion.form>
+                )
+                )}
+
+                {/* 3. SIGN UP FORM */}
+                {mode === "signup" && !isRedirecting && (
+                  <motion.form 
+                    key="signup"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleSignup} 
+                    className="space-y-4"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="group">
+                         <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">First Name</label>
+                         <input 
+                            type="text" 
+                            required 
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="John" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                         />
+                      </div>
+                      <div className="group">
+                         <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Last Name</label>
+                         <input 
+                            type="text" 
+                            required 
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Doe" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                         />
+                      </div>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Email Address</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Mail size={16} /></div>
+                        <input 
+                            type="email" 
+                            required 
+                            value={signupEmail}
+                            onChange={(e) => setSignupEmail(e.target.value)}
+                            placeholder="engineer@maritime.com" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Password</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Lock size={16} /></div>
+                        <input 
+                            type="password" 
+                            required 
+                            value={signupPass}
+                            onChange={(e) => setSignupPass(e.target.value)}
+                            placeholder="Create password" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><Eye size={14} /></button>
+                      </div>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Confirm Password</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><ShieldCheck size={16} /></div>
+                        <input 
+                            type="password" 
+                            required 
+                            value={confirmPass}
+                            onChange={(e) => setConfirmPass(e.target.value)}
+                            placeholder="Confirm password" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col gap-3">
+                      <button type="submit" disabled={isLoading} className="w-full rounded-xl bg-orange-600 hover:bg-orange-500 text-white py-3.5 text-xs font-bold uppercase tracking-widest transition-all shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
+                        {isLoading ? <Loader2 size={14} className="animate-spin" /> : "Sign Up"}
+                      </button>
+                      <button type="button" onClick={() => setMode("login")} className="w-full py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
+
+                {/* 4. RECOVERY MODE */}
+                {mode === "reset" && !isRedirecting && (
+                  <motion.form 
+                    key="reset"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleResetSubmit} 
+                    className="space-y-5"
+                  >
+                    {resetStep === "email" && (
+                      <div className="space-y-4">
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Recovery Email</label>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-500 transition-colors">
+                              <RefreshCcw size={16} />
+                            </div>
+                            <input 
+                              type="email" 
+                              required 
+                              value={resetEmail}
+                              onChange={(e) => setResetEmail(e.target.value)}
+                              placeholder="id@fleet.com" 
+                              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 pl-10 pr-4 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                            />
+                          </div>
+                          <p className="text-[10px] text-zinc-400 mt-2 px-1">We'll send a verification code to this address.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {resetStep === "otp" && (
+                      <div className="space-y-4">
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Verification Code</label>
+                          <input 
+                              type="text" 
+                              required 
+                              value={otp}
+                              onChange={(e) => setOtp(e.target.value)}
+                              placeholder="123456" 
+                              maxLength={6}
+                              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-center text-sm font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono tracking-[0.5em]" 
+                          />
+                          <p className="text-[10px] text-zinc-400 mt-2 px-1 text-center">Sent to {resetEmail}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {resetStep === "newPassword" && (
+                      <div className="space-y-3">
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">New Password</label>
+                          <input 
+                            type="password" 
+                            required 
+                            placeholder="Enter new password" 
+                            value={newResetPass}
+                            onChange={(e) => setNewResetPass(e.target.value)}
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                          />
+                        </div>
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Confirm Password</label>
+                          <input 
+                            type="password" 
+                            required 
+                            placeholder="Confirm new password" 
+                            value={confirmResetPass}
+                            onChange={(e) => setConfirmResetPass(e.target.value)}
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex flex-col gap-3">
+                      <button 
+                        type="submit" 
+                        disabled={isLoading} 
+                        className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white py-3.5 text-xs font-bold uppercase tracking-widest transition-all shadow-lg disabled:opacity-70 flex items-center justify-center gap-2"
+                      >
+                        {isLoading ? <Loader2 size={14} className="animate-spin" /> : 
+                          resetStep === "email" ? "Send Code" :
+                          resetStep === "otp" ? "Verify Code" : "Reset Password"
+                        }
+                      </button>
+                      
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                           if (resetStep === "otp") setResetStep("email");
+                           else if (resetStep === "newPassword") setResetStep("otp");
+                           else setMode("login");
+                        }} 
+                        className="w-full py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                      >
+                        {resetStep === "email" ? "Cancel Recovery" : "Go Back"}
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
+
+              </AnimatePresence>
+            </div>
+
+          </div>
+
+          {/* SYSTEM STATUS FOOTER */}
+          <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
+             <div className="flex items-center gap-4 text-zinc-500 font-mono">
+                <span className="flex items-center gap-1.5"><Waves size={12} className="text-blue-500" /> Calm</span>
+                <span className="flex items-center gap-1.5"><Wind size={12} className="text-zinc-400" /> 12kn</span>
+             </div>
+             <LiveTime />
+          </div>
+
+        </div>
+      </motion.div>
     </div>
-  )
+  );
 }
