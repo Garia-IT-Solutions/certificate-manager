@@ -49,7 +49,6 @@ function AnimatedCounter({ value }: { value: number }) {
   return <motion.span>{display}</motion.span>;
 }
 
-// --- BENTO CARD SYSTEM ---
 
 const SPRING_TRANSITION = { type: "spring", stiffness: 180, damping: 22, mass: 0.8 };
 interface BentoCardProps {
@@ -367,7 +366,6 @@ function CertificatesContent() {
   );
 }
 
-// --- NEW NOTIFICATION COMPONENT ---
 
 const MOCK_NOTIFS = [
   { id: 1, type: "info", title: "System Update", msg: "Dashboard v2.4.1 is now live.", time: "10m ago" },
