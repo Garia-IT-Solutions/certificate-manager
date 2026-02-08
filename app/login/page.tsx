@@ -3,25 +3,25 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Anchor, 
-  Lock, 
-  Mail, 
-  Waves, 
-  Wind, 
+import {
+  Anchor,
+  Lock,
+  Mail,
+  Waves,
+  Wind,
   Eye,
   EyeOff,
   Loader2,
   RefreshCcw,
   ShieldCheck,
   AlertCircle,
-  User, 
+  User,
   ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 // ✅ IMPORTING THE API SERVICE
-import { api } from "@/app/services/api"; 
+import { api } from "@/app/services/api";
 
 // --- LIVE CLOCK UTILITY ---
 function LiveTime() {
@@ -39,14 +39,14 @@ function LiveTime() {
 
 export default function LoginPage() {
   const router = useRouter();
-  
+
   // --- STATES ---
   const [mode, setMode] = useState<"login" | "reset" | "signup">("login");
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
-  
+
   // Login Form States
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -72,19 +72,19 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(""); 
+    setError("");
 
     try {
       // ✅ REAL API CALL
       const response = await api.login({ email, password });
-      
+
       // Success Logic
       localStorage.setItem("token", response.access_token);
       if (rememberMe) localStorage.setItem("remembered_user", email);
 
-      setIsLoading(false); 
+      setIsLoading(false);
       setIsRedirecting(true); // Trigger "Access Granted" Animation
-      
+
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
@@ -96,7 +96,7 @@ export default function LoginPage() {
       const errMsg = err.response?.data?.detail || "Invalid credentials. Access Denied.";
       setError(errMsg);
       toast.error(errMsg);
-      
+
       // Trigger Shake
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -106,17 +106,29 @@ export default function LoginPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (signupPass !== confirmPass) {
-        toast.error("Passwords do not match");
-        return;
+      toast.error("Passwords do not match");
+      return;
     }
-    
+
     setIsLoading(true);
-    // Simulate Signup API (Replace with api.register if you have it)
-    setTimeout(() => {
-        setIsLoading(false);
-        toast.success("Crew member registered successfully");
-        setMode("login");
-    }, 1500);
+    try {
+      await api.register({
+        first_name: firstName,
+        last_name: lastName,
+        email: signupEmail,
+        password: signupPass
+      });
+      toast.success("Crew member registered successfully");
+      setMode("login");
+      // Optional: Auto-fill login fields
+      setEmail(signupEmail);
+      setPassword("");
+    } catch (err: any) {
+      const errMsg = err.message || "Registration failed";
+      toast.error(errMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetSubmit = async (e: React.FormEvent) => {
@@ -126,18 +138,18 @@ export default function LoginPage() {
     // Using simulated delays for Reset Flow
     setTimeout(() => {
       setIsLoading(false);
-      
+
       if (resetStep === "email") {
         toast.info(`OTP sent to ${resetEmail}`);
         setResetStep("otp");
-      } 
+      }
       else if (resetStep === "otp") {
         if (otp === "123456") {
           setResetStep("newPassword");
         } else {
           toast.error("Invalid OTP. Use 123456 for demo.");
         }
-      } 
+      }
       else if (resetStep === "newPassword") {
         if (newResetPass === confirmResetPass && newResetPass.length >= 6) {
           toast.success("Password reset successful!");
@@ -157,28 +169,28 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 font-sans relative">
-      
+
       {/* Cinematic Spotlight */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[120px]" />
       </div>
 
-      <motion.div 
+      <motion.div
         layout
         // ✅ SAFE ANIMATION: Removed initial={{ opacity: 0 }} to prevent blank screen
-        animate={{ 
-          scale: 1, 
+        animate={{
+          scale: 1,
           y: 0,
-          x: shake ? [-10, 10, -10, 10, 0] : 0 
+          x: shake ? [-10, 10, -10, 10, 0] : 0
         }}
         className="w-full max-w-[420px] relative z-10"
       >
         {/* --- MAIN TERMINAL CARD --- */}
         <div className={cn(
-            "bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border rounded-[2rem] shadow-2xl overflow-hidden relative transition-colors duration-300",
-            error ? "border-red-500/50" : "border-zinc-200 dark:border-zinc-800"
+          "bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border rounded-[2rem] shadow-2xl overflow-hidden relative transition-colors duration-300",
+          error ? "border-red-500/50" : "border-zinc-200 dark:border-zinc-800"
         )}>
-          
+
           {/* Status Line */}
           <div className={cn(
             "absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent to-transparent opacity-50 transition-colors duration-500",
@@ -186,7 +198,7 @@ export default function LoginPage() {
           )} />
 
           <div className="p-8">
-            
+
             {/* HEADER */}
             <div className="text-center mb-8">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white mb-5 shadow-inner">
@@ -195,9 +207,9 @@ export default function LoginPage() {
               <h1 className="text-2xl font-light tracking-tighter text-zinc-900 dark:text-white mb-1">
                 Captain's<span className="font-bold">Log</span>
               </h1>
-              
+
               <div className="flex items-center justify-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-400">
-                <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse transition-colors", 
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse transition-colors",
                   isRedirecting ? "bg-emerald-500" : error ? "bg-red-500" : mode === 'signup' ? "bg-emerald-500" : mode === 'reset' ? "bg-blue-500" : "bg-orange-500"
                 )} />
                 {isRedirecting ? "AUTHENTICATED" : error ? "ERROR" : mode === 'signup' ? "NEW ENTRY" : mode === 'reset' ? `RECOVERY: ${resetStep}` : "SYSTEM ONLINE"}
@@ -205,170 +217,170 @@ export default function LoginPage() {
             </div>
 
             {/* DYNAMIC CONTENT AREA */}
-            <div className="min-h-[260px]"> 
+            <div className="min-h-[260px]">
               <AnimatePresence mode="wait">
-                
+
                 {/* 1. SUCCESS / REDIRECTING VIEW */}
                 {isRedirecting ? (
-                   <motion.div
-                     key="success"
-                     initial={{ opacity: 0 }}
-                     animate={{ opacity: 1 }}
-                     className="flex flex-col items-center justify-center h-full py-10"
-                   >
-                      <div className="h-20 w-20 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-6" />
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Access Granted</h3>
-                      <p className="text-xs text-zinc-500 font-mono mt-2 uppercase tracking-widest">Loading Dashboard...</p>
-                   </motion.div>
-                ) : (
-                
-                /* 2. LOGIN FORM */
-                mode === "login" && (
-                  <motion.form 
-                    key="login"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    onSubmit={handleLogin} 
-                    className="space-y-5"
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center h-full py-10"
                   >
-                    {/* Error Banner */}
-                    {error && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 p-3 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400"
+                    <div className="h-20 w-20 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-6" />
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Access Granted</h3>
+                    <p className="text-xs text-zinc-500 font-mono mt-2 uppercase tracking-widest">Loading Dashboard...</p>
+                  </motion.div>
+                ) : (
+
+                  /* 2. LOGIN FORM */
+                  mode === "login" && (
+                    <motion.form
+                      key="login"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      onSubmit={handleLogin}
+                      className="space-y-5"
+                    >
+                      {/* Error Banner */}
+                      {error && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 p-3 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400"
                         >
-                            <AlertCircle size={16} />
-                            <span className="text-xs font-bold">{error}</span>
+                          <AlertCircle size={16} />
+                          <span className="text-xs font-bold">{error}</span>
                         </motion.div>
-                    )}
+                      )}
 
-                    <div className="space-y-4">
-                      {/* Email */}
-                      <div className="group">
-                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Captain's ID</label>
-                        <div className="relative">
-                          <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
-                            <Mail size={16} />
-                          </div>
-                          <input 
-                            type="email" 
-                            required 
-                            value={email}
-                            onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                            placeholder="id@fleet.com" 
-                            className={cn(
+                      <div className="space-y-4">
+                        {/* Email */}
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Captain's ID</label>
+                          <div className="relative">
+                            <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
+                              <Mail size={16} />
+                            </div>
+                            <input
+                              type="email"
+                              required
+                              value={email}
+                              onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                              placeholder="id@fleet.com"
+                              className={cn(
                                 "w-full bg-zinc-50 dark:bg-zinc-900 border rounded-xl py-3.5 pl-10 pr-4 text-xs font-medium outline-none transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono",
-                                error 
-                                    ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20" 
-                                    : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Password */}
-                      <div className="group">
-                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Passcode</label>
-                        <div className="relative">
-                          <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
-                            <Lock size={16} />
+                                error
+                                  ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20"
+                                  : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
+                              )}
+                            />
                           </div>
-                          <input 
-                            type={showPassword ? "text" : "password"} 
-                            required 
-                            value={password}
-                            onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                            placeholder="••••••••" 
-                            className={cn(
+                        </div>
+
+                        {/* Password */}
+                        <div className="group">
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Passcode</label>
+                          <div className="relative">
+                            <div className={cn("absolute left-3 top-1/2 -translate-y-1/2 transition-colors", error ? "text-red-400" : "text-zinc-400 group-focus-within:text-orange-500")}>
+                              <Lock size={16} />
+                            </div>
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              required
+                              value={password}
+                              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                              placeholder="••••••••"
+                              className={cn(
                                 "w-full bg-zinc-50 dark:bg-zinc-900 border rounded-xl py-3.5 pl-10 pr-10 text-xs font-medium outline-none transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono",
-                                error 
-                                    ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20" 
-                                    : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
-                            )}
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => setShowPassword(!showPassword)} 
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                          >
-                            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                          </button>
+                                error
+                                  ? "border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-1 focus:ring-red-500/20"
+                                  : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                            >
+                              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Utils */}
-                    <div className="flex items-center justify-between px-1">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input 
-                            type="checkbox" 
+                      {/* Utils */}
+                      <div className="flex items-center justify-between px-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
                             checked={rememberMe}
                             onChange={(e) => setRememberMe(e.target.checked)}
-                            className="accent-orange-500 h-3 w-3" 
-                        />
-                        <span className="text-[10px] font-medium text-zinc-500 group-hover:text-zinc-800 dark:group-hover:text-zinc-300 transition-colors">Keep signed in</span>
-                      </label>
-                      
-                      <button type="button" onClick={() => setMode("reset")} className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 hover:text-orange-500 transition-colors">
-                        Reset Passcode
-                      </button>
-                    </div>
+                            className="accent-orange-500 h-3 w-3"
+                          />
+                          <span className="text-[10px] font-medium text-zinc-500 group-hover:text-zinc-800 dark:group-hover:text-zinc-300 transition-colors">Keep signed in</span>
+                        </label>
 
-                    <button 
-                      type="submit" 
-                      disabled={isLoading} 
-                      className="group relative w-full overflow-hidden rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black py-3.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
-                    >
-                      {isLoading ? (
-                        <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Verifying...</span>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">Initialize Session <ArrowRight size={14} /></span>
-                      )}
-                    </button>
-                    
-                    <div className="text-center pt-2">
-                       <button type="button" onClick={() => setMode("signup")} className="text-[10px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                        <button type="button" onClick={() => setMode("reset")} className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 hover:text-orange-500 transition-colors">
+                          Reset Passcode
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="group relative w-full overflow-hidden rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black py-3.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Verifying...</span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">Initialize Session <ArrowRight size={14} /></span>
+                        )}
+                      </button>
+
+                      <div className="text-center pt-2">
+                        <button type="button" onClick={() => setMode("signup")} className="text-[10px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
                           New here? <span className="underline decoration-zinc-300 underline-offset-2">Register Crew Member</span>
-                       </button>
-                    </div>
-                  </motion.form>
-                )
+                        </button>
+                      </div>
+                    </motion.form>
+                  )
                 )}
 
                 {/* 3. SIGN UP FORM */}
                 {mode === "signup" && !isRedirecting && (
-                  <motion.form 
+                  <motion.form
                     key="signup"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    onSubmit={handleSignup} 
+                    onSubmit={handleSignup}
                     className="space-y-4"
                   >
                     <div className="grid grid-cols-2 gap-3">
                       <div className="group">
-                         <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">First Name</label>
-                         <input 
-                            type="text" 
-                            required 
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="John" 
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
-                         />
+                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">First Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          placeholder="John"
+                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
+                        />
                       </div>
                       <div className="group">
-                         <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Last Name</label>
-                         <input 
-                            type="text" 
-                            required 
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            placeholder="Doe" 
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
-                         />
+                        <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Last Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          placeholder="Doe"
+                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
+                        />
                       </div>
                     </div>
 
@@ -376,13 +388,13 @@ export default function LoginPage() {
                       <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Email Address</label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Mail size={16} /></div>
-                        <input 
-                            type="email" 
-                            required 
-                            value={signupEmail}
-                            onChange={(e) => setSignupEmail(e.target.value)}
-                            placeholder="engineer@maritime.com" 
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        <input
+                          type="email"
+                          required
+                          value={signupEmail}
+                          onChange={(e) => setSignupEmail(e.target.value)}
+                          placeholder="engineer@maritime.com"
+                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                         />
                       </div>
                     </div>
@@ -391,13 +403,13 @@ export default function LoginPage() {
                       <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Password</label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Lock size={16} /></div>
-                        <input 
-                            type="password" 
-                            required 
-                            value={signupPass}
-                            onChange={(e) => setSignupPass(e.target.value)}
-                            placeholder="Create password" 
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        <input
+                          type="password"
+                          required
+                          value={signupPass}
+                          onChange={(e) => setSignupPass(e.target.value)}
+                          placeholder="Create password"
+                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                         />
                         <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><Eye size={14} /></button>
                       </div>
@@ -407,13 +419,13 @@ export default function LoginPage() {
                       <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Confirm Password</label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><ShieldCheck size={16} /></div>
-                        <input 
-                            type="password" 
-                            required 
-                            value={confirmPass}
-                            onChange={(e) => setConfirmPass(e.target.value)}
-                            placeholder="Confirm password" 
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                        <input
+                          type="password"
+                          required
+                          value={confirmPass}
+                          onChange={(e) => setConfirmPass(e.target.value)}
+                          placeholder="Confirm password"
+                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                         />
                       </div>
                     </div>
@@ -431,12 +443,12 @@ export default function LoginPage() {
 
                 {/* 4. RECOVERY MODE */}
                 {mode === "reset" && !isRedirecting && (
-                  <motion.form 
+                  <motion.form
                     key="reset"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    onSubmit={handleResetSubmit} 
+                    onSubmit={handleResetSubmit}
                     className="space-y-5"
                   >
                     {resetStep === "email" && (
@@ -447,13 +459,13 @@ export default function LoginPage() {
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-500 transition-colors">
                               <RefreshCcw size={16} />
                             </div>
-                            <input 
-                              type="email" 
-                              required 
+                            <input
+                              type="email"
+                              required
                               value={resetEmail}
                               onChange={(e) => setResetEmail(e.target.value)}
-                              placeholder="id@fleet.com" 
-                              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 pl-10 pr-4 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                              placeholder="id@fleet.com"
+                              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 pl-10 pr-4 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                             />
                           </div>
                           <p className="text-[10px] text-zinc-400 mt-2 px-1">We'll send a verification code to this address.</p>
@@ -465,14 +477,14 @@ export default function LoginPage() {
                       <div className="space-y-4">
                         <div className="group">
                           <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Verification Code</label>
-                          <input 
-                              type="text" 
-                              required 
-                              value={otp}
-                              onChange={(e) => setOtp(e.target.value)}
-                              placeholder="123456" 
-                              maxLength={6}
-                              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-center text-sm font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono tracking-[0.5em]" 
+                          <input
+                            type="text"
+                            required
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                            placeholder="123456"
+                            maxLength={6}
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-center text-sm font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono tracking-[0.5em]"
                           />
                           <p className="text-[10px] text-zinc-400 mt-2 px-1 text-center">Sent to {resetEmail}</p>
                         </div>
@@ -483,48 +495,48 @@ export default function LoginPage() {
                       <div className="space-y-3">
                         <div className="group">
                           <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">New Password</label>
-                          <input 
-                            type="password" 
-                            required 
-                            placeholder="Enter new password" 
+                          <input
+                            type="password"
+                            required
+                            placeholder="Enter new password"
                             value={newResetPass}
                             onChange={(e) => setNewResetPass(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                           />
                         </div>
                         <div className="group">
                           <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1 ml-1 tracking-wider">Confirm Password</label>
-                          <input 
-                            type="password" 
-                            required 
-                            placeholder="Confirm new password" 
+                          <input
+                            type="password"
+                            required
+                            placeholder="Confirm new password"
                             value={confirmResetPass}
                             onChange={(e) => setConfirmResetPass(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-xs font-medium outline-none focus:border-blue-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                           />
                         </div>
                       </div>
                     )}
 
                     <div className="pt-2 flex flex-col gap-3">
-                      <button 
-                        type="submit" 
-                        disabled={isLoading} 
+                      <button
+                        type="submit"
+                        disabled={isLoading}
                         className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white py-3.5 text-xs font-bold uppercase tracking-widest transition-all shadow-lg disabled:opacity-70 flex items-center justify-center gap-2"
                       >
-                        {isLoading ? <Loader2 size={14} className="animate-spin" /> : 
+                        {isLoading ? <Loader2 size={14} className="animate-spin" /> :
                           resetStep === "email" ? "Send Code" :
-                          resetStep === "otp" ? "Verify Code" : "Reset Password"
+                            resetStep === "otp" ? "Verify Code" : "Reset Password"
                         }
                       </button>
-                      
-                      <button 
-                        type="button" 
+
+                      <button
+                        type="button"
                         onClick={() => {
-                           if (resetStep === "otp") setResetStep("email");
-                           else if (resetStep === "newPassword") setResetStep("otp");
-                           else setMode("login");
-                        }} 
+                          if (resetStep === "otp") setResetStep("email");
+                          else if (resetStep === "newPassword") setResetStep("otp");
+                          else setMode("login");
+                        }}
                         className="w-full py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                       >
                         {resetStep === "email" ? "Cancel Recovery" : "Go Back"}
@@ -540,11 +552,11 @@ export default function LoginPage() {
 
           {/* SYSTEM STATUS FOOTER */}
           <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
-             <div className="flex items-center gap-4 text-zinc-500 font-mono">
-                <span className="flex items-center gap-1.5"><Waves size={12} className="text-blue-500" /> Calm</span>
-                <span className="flex items-center gap-1.5"><Wind size={12} className="text-zinc-400" /> 12kn</span>
-             </div>
-             <LiveTime />
+            <div className="flex items-center gap-4 text-zinc-500 font-mono">
+              <span className="flex items-center gap-1.5"><Waves size={12} className="text-blue-500" /> Calm</span>
+              <span className="flex items-center gap-1.5"><Wind size={12} className="text-zinc-400" /> 12kn</span>
+            </div>
+            <LiveTime />
           </div>
 
         </div>

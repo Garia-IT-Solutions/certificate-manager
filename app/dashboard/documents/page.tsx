@@ -45,9 +45,6 @@ interface Document {
   fileUrl?: string;
 }
 
-// --- MOCK DATA ---
-const INITIAL_DATA: Document[] = [];
-
 // --- CATEGORY HELPERS (FIXED LOGIC) ---
 const CAT_PATTERNS = {
   med: /medical|health|fever/i,
@@ -174,11 +171,11 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
               <div className="col-span-2 sm:col-span-1">
                 <div className="flex justify-between items-center mb-1.5 px-1"><label className="text-[10px] font-bold uppercase text-zinc-500">Document Name</label><button onClick={handleMagicFormat} className="flex items-center gap-1 text-[9px] font-bold uppercase text-orange-500 hover:text-orange-400 transition-colors" title="Auto-format name"><Sparkles size={10} /> Auto-Format</button></div>
                 <div className="relative group">
-                    <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g., Medical Cert" className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-zinc-800 rounded-md">
-                        {/* DYNAMIC EXTENSION FIX */}
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase">{file ? file.name.split('.').pop()?.toUpperCase() : "TXT"}</span>
-                    </div>
+                  <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g., Medical Cert" className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-zinc-800 rounded-md">
+                    {/* DYNAMIC EXTENSION FIX */}
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">{file ? file.name.split('.').pop()?.toUpperCase() : "TXT"}</span>
+                  </div>
                 </div>
               </div>
               <div className="col-span-2 sm:col-span-1">
@@ -201,33 +198,33 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
 function PDFViewerModal({ isOpen, fileUrl, fileName, onClose }: { isOpen: boolean; fileUrl?: string; fileName: string; onClose: () => void }) {
   if (!isOpen) return null;
   const isPDF = fileName.toLowerCase().endsWith('.pdf');
-  
+
   return (
     <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full h-full max-w-6xl max-h-[90vh] bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl overflow-hidden flex flex-col">
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-black/40">
           <div>
-             <h3 className="text-sm font-bold text-white">Preview</h3>
-             <p className="text-[10px] font-mono text-zinc-400 uppercase mt-0.5">{fileName}</p>
+            <h3 className="text-sm font-bold text-white">Preview</h3>
+            <p className="text-[10px] font-mono text-zinc-400 uppercase mt-0.5">{fileName}</p>
           </div>
           <div className="flex items-center gap-2">
-             {/* Fallback Download Button */}
-             {fileUrl && (
-                 <a href={fileUrl} download={fileName} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-orange-500 transition-colors" title="Download Original">
-                    <Download size={20} />
-                 </a>
-             )}
-             <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"><X size={20} /></button>
+            {/* Fallback Download Button */}
+            {fileUrl && (
+              <a href={fileUrl} download={fileName} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-orange-500 transition-colors" title="Download Original">
+                <Download size={20} />
+              </a>
+            )}
+            <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"><X size={20} /></button>
           </div>
         </div>
         <div className="flex-1 overflow-hidden bg-zinc-950 flex items-center justify-center relative">
           {!fileUrl ? (
-             <div className="text-zinc-500 flex flex-col items-center"><FileIcon size={48} className="mb-4 opacity-20" /><p>No preview data available</p></div> 
+            <div className="text-zinc-500 flex flex-col items-center"><FileIcon size={48} className="mb-4 opacity-20" /><p>No preview data available</p></div>
           ) : isPDF ? (
-             // IFRAME is more robust for Blob URLs
-             <iframe src={fileUrl} className="w-full h-full border-none bg-white" title="PDF Preview" />
+            // IFRAME is more robust for Blob URLs
+            <iframe src={fileUrl} className="w-full h-full border-none bg-white" title="PDF Preview" />
           ) : (
-             <img src={fileUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+            <img src={fileUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
           )}
         </div>
       </motion.div>
@@ -253,7 +250,7 @@ export default function DocumentsPage() {
     // JPEG signature (/9j/...)
     if (b64.startsWith('/9j/')) return 'image/jpeg';
     // Default fallback
-    return 'application/pdf'; 
+    return 'application/pdf';
   };
 
   // --- HELPER: Convert Base64 to Blob ---
@@ -281,23 +278,23 @@ export default function DocumentsPage() {
   const loadDocuments = async () => {
     try {
       const data = await api.getDocuments();
-      
+
       const mapped = data.map((d: any) => {
-        const sizeInBytes = d.doc ? (d.doc.length * (3/4)) : 0;
+        const sizeInBytes = d.doc ? (d.doc.length * (3 / 4)) : 0;
         const sizeInMB = sizeInBytes / (1024 * 1024);
 
         let fileUrl = "";
         let finalMimeType = "application/pdf"; // Default
 
         if (d.doc) {
-            // 1. Auto-detect correct MIME type from data
-            finalMimeType = getMimeType(d.doc);
-            
-            // 2. Create Blob with correct type
-            const blob = b64toBlob(d.doc, finalMimeType);
-            if (blob) {
-                fileUrl = URL.createObjectURL(blob);
-            }
+          // 1. Auto-detect correct MIME type from data
+          finalMimeType = getMimeType(d.doc);
+
+          // 2. Create Blob with correct type
+          const blob = b64toBlob(d.doc, finalMimeType);
+          if (blob) {
+            fileUrl = URL.createObjectURL(blob);
+          }
         }
 
         // Ensure filename has an extension for the UI
@@ -318,7 +315,7 @@ export default function DocumentsPage() {
           status: d.status || "VALID",
           fileName: finalName,
           fileSizeMB: parseFloat(sizeInMB.toFixed(2)),
-          fileUrl: fileUrl 
+          fileUrl: fileUrl
         };
       });
 
@@ -558,8 +555,8 @@ export default function DocumentsPage() {
                   <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">File Size</p><p className="text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.fileSizeMB} MB</p></div>
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <a 
-                    href={selectedDoc.fileUrl} 
+                  <a
+                    href={selectedDoc.fileUrl}
                     download={selectedDoc.fileName}
                     className={cn(
                       "flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]",

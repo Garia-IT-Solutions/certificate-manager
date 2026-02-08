@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
+from typing import Optional
 
 class DocumentCreate(BaseModel):
     docID: str
@@ -15,6 +16,7 @@ class DocumentCreate(BaseModel):
 
 class Document(DocumentCreate):
     id: int
+    user_id: Optional[int] = None
 
     class Config:
         from_attributes = True

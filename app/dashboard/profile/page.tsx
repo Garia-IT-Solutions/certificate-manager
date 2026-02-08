@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
     User,
@@ -51,24 +52,32 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [formData, setFormData] = useState<Profile>(MOCK_PROFILE);
+    const router = useRouter();
 
     // --- Fetch Profile ---
     useEffect(() => {
         async function fetchProfile() {
             try {
-                // Attempt to fetch from backend
-                // Note: Assuming proxy or CORS set up. using /api/profile if proxy exists, or direct if valid.
-                // For now, we try to fetch from localhost:8000 via a direct call or relative path if proxied.
-                // If the backend isn't running or reachable, we fall back to mock.
+                const token = localStorage.getItem("token");
+                if (!token) {
+                    router.push("/login");
+                    return;
+                }
 
-                const res = await fetch('http://localhost:8000/profile');
+                const res = await fetch('http://localhost:8000/profile', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
                 if (res.ok) {
                     const data = await res.json();
                     setProfile(data);
                     setFormData(data);
-                    // toast.success("Profile loaded from backend");
+                } else if (res.status === 401) {
+                    localStorage.removeItem("token");
+                    router.push("/login");
                 } else {
-                    // If 404 or other error, stick to mock but maybe notify
                     console.warn("Backend profile not found or error, using mock.");
                 }
             } catch (e) {
@@ -88,9 +97,19 @@ export default function ProfilePage() {
 
     const handleSave = async () => {
         try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                toast.error("You are not logged in.");
+                router.push("/login");
+                return;
+            }
+
             const res = await fetch('http://localhost:8000/profile', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(formData)
             });
             const updated = res.ok ? await res.json() : formData;

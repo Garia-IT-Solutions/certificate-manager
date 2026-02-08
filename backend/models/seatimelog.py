@@ -20,6 +20,7 @@ class SeaTimeLogCreate(BaseModel):
 
 class SeaTimeLog(SeaTimeLogCreate):
     id: int
+    user_id: Optional[int] = None
 
     class Config:
         from_attributes = True

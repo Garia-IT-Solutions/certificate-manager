@@ -17,6 +17,7 @@ const navItems = [
   { name: "Sea Time", href: "/dashboard/sea-time", icon: Ship },
   { name: "Documents", href: "/dashboard/documents", icon: FileText },
   { name: "Certificates", href: "/dashboard/certificates", icon: Award },
+  { name: "Resume", href: "/dashboard/resume", icon: FileText },
 ];
 
 export function AppSidebar() {

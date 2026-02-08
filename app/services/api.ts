@@ -2,11 +2,11 @@ import { SYSTEM_CONFIG } from "@/lib/config";
 
 const API_URL = SYSTEM_CONFIG.app.apiBaseUrl;
 const getHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+    const token = localStorage.getItem("token");
+    return {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 };
 
 export const api = {
@@ -49,7 +49,7 @@ export const api = {
     createCertificate: async (data: any) => {
         const res = await fetch(`${API_URL}/certificates`, {
             method: "POST",
-            headers: getHeaders(),  
+            headers: getHeaders(),
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error("Failed to create certificate");
@@ -63,6 +63,16 @@ export const api = {
         });
         if (!res.ok) throw new Error("Failed to delete certificate");
         return true;
+    },
+
+    updateCertificate: async (id: number, data: any) => {
+        const res = await fetch(`${API_URL}/certificates/${id}`, {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) throw new Error("Failed to update certificate");
+        return res.json();
     },
 
     // DOCUMENTS

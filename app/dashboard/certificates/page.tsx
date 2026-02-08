@@ -13,6 +13,7 @@ import {
   Clock,
   Download,
   Trash2,
+  Edit,
   Eye,
   UploadCloud,
   X,
@@ -287,10 +288,10 @@ function CertificateViewerModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+        <div className="flex-1 overflow-hidden bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
           {fileUrl ? (
             isPDF ? (
-              <embed src={fileUrl} type="application/pdf" className="w-full h-full" />
+              <iframe src={fileUrl} className="w-full h-full border-none bg-white" title="PDF Preview" />
             ) : (
               <div className="w-full h-full flex items-center justify-center p-8">
                 <img src={fileUrl} alt={fileName} className="max-w-full max-h-full object-contain shadow-lg" />
@@ -309,6 +310,150 @@ function CertificateViewerModal({
   );
 }
 
+function EditCertificateModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (id: number, data: any) => Promise<void>;
+  initialData: Certificate;
+}) {
+  const [formData, setFormData] = useState({
+    certName: initialData.name,
+    issuedBy: initialData.issuer,
+    issueDate: initialData.issueDate.split('T')[0],
+    expiry: initialData.expiryDate.split('T')[0],
+    status: initialData.status
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [newFile, setNewFile] = useState<File | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      let updateData: any = { ...formData };
+
+      // Handle file upload if a new file is selected
+      if (newFile) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const result = reader.result as string;
+          const base64Content = result.includes(',') ? result.split(',')[1] : "";
+          updateData.cert = base64Content;
+          // If replacing file, might want to auto-update name/type if not manually changed?
+          // For now, just send the content
+
+          await onSave(initialData.id, updateData);
+          onClose();
+        };
+        reader.readAsDataURL(newFile);
+        return;
+      }
+
+      await onSave(initialData.id, updateData);
+      onClose();
+
+    } catch (error) {
+      console.error("Save failed", error);
+      toast.error("Failed to update certificate");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+      >
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Edit Certificate</h3>
+          <button onClick={onClose} disabled={isSaving}>
+            <X size={20} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Certificate Name</label>
+            <input
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+              value={formData.certName}
+              onChange={(e) => setFormData({ ...formData, certName: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issued By</label>
+            <input
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+              value={formData.issuedBy}
+              onChange={(e) => setFormData({ ...formData, issuedBy: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issue Date</label>
+              <input
+                type="date"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                value={formData.issueDate}
+                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Expiry Date</label>
+              <input
+                type="date"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                value={formData.expiry}
+                onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Replace File (Optional)</label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setNewFile(e.target.files ? e.target.files[0] : null)}
+              className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+            />
+            {newFile && <p className="text-[10px] text-zinc-400 mt-1">Selected: {newFile.name}</p>}
+          </div>
+        </div>
+
+        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSaving}
+            className="px-4 py-2 text-xs font-bold uppercase text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold uppercase shadow-lg shadow-orange-500/20 disabled:opacity-50"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </motion.div >
+    </div >
+  );
+}
+
 
 export default function CertificatesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -318,31 +463,85 @@ export default function CertificatesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [certToDelete, setCertToDelete] = useState<number | null>(null);
   const [showViewer, setShowViewer] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
 
   useEffect(() => {
     loadCertificates();
   }, []);
 
+  // --- HELPER: Detect MIME type from Base64 signature ---
+  const getMimeType = (b64: string) => {
+    // PDF signature (JVBERi0...)
+    if (b64.startsWith('JVBERi0')) return 'application/pdf';
+    // PNG signature (iVBORw0KGgo...)
+    if (b64.startsWith('iVBORw0KGgo')) return 'image/png';
+    // JPEG signature (/9j/...)
+    if (b64.startsWith('/9j/')) return 'image/jpeg';
+    // Default fallback
+    return 'application/pdf';
+  };
+
+  // --- HELPER: Convert Base64 to Blob ---
+  const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
+    try {
+      const byteCharacters = atob(b64Data);
+      const byteArrays = [];
+
+      for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      return new Blob(byteArrays, { type: contentType });
+    } catch (e) {
+      console.error("Blob creation failed:", e);
+      return null;
+    }
+  };
+
   const loadCertificates = async () => {
     try {
       const data = await api.getCertificates();
-      // Map backend data to frontend model if necessary
-      // Assuming backend `certName` -> frontend `name`
-      // Assuming backend `certType` -> frontend `name` or `issuer` (adjust as needed)
-      // Check backend response structure from `certificate_controller.py`:
-      // keys: id, cert (blob), certType, issuedBy, status, expiry, certName, issueDate, uploadDate, hidden
 
-      const mapped = data.map((c: any) => ({
-        id: c.id,
-        name: c.certName || "Untitled Certificate",
-        issuer: c.issuedBy || "Unknown Issuer",
-        issueDate: c.issueDate || new Date().toISOString(),
-        expiryDate: c.expiry || new Date().toISOString(),
-        status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
-        fileName: (c.certName || "certificate") + ".pdf", // Placeholder if filename not stored separately
-        fileUrl: "" // Blob handling might be needed, for now empty
-      }));
+      const mapped = data.map((c: any) => {
+        let fileUrl = "";
+        let finalMimeType = "application/pdf"; // Default
+
+        if (c.cert) {
+          // 1. Auto-detect correct MIME type from data
+          finalMimeType = getMimeType(c.cert);
+
+          // 2. Create Blob with correct type
+          const blob = b64toBlob(c.cert, finalMimeType);
+          if (blob) {
+            fileUrl = URL.createObjectURL(blob);
+          }
+        }
+
+        // Ensure filename has an extension for the UI
+        let displayExt = ".pdf";
+        if (finalMimeType === 'image/jpeg') displayExt = ".jpg";
+        if (finalMimeType === 'image/png') displayExt = ".png";
+
+        const hasExt = c.certName?.toLowerCase().endsWith(displayExt);
+        const finalName = (c.certName || "Untitled Certificate") + (hasExt ? "" : displayExt);
+
+        return {
+          id: c.id,
+          name: c.certName || "Untitled Certificate",
+          issuer: c.issuedBy || "Unknown Issuer",
+          issueDate: c.issueDate || new Date().toISOString(),
+          expiryDate: c.expiry || new Date().toISOString(),
+          status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
+          fileName: finalName,
+          fileUrl: fileUrl
+        };
+      });
       setCertificates(mapped);
     } catch (error) {
       console.error("Failed to load certificates:", error);
@@ -431,6 +630,17 @@ export default function CertificatesPage() {
       } catch (error) {
         toast.error("Failed to delete certificate");
       }
+    }
+  };
+
+  const handleUpdate = async (id: number, data: any) => {
+    try {
+      await api.updateCertificate(id, data);
+      toast.success("Certificate updated successfully");
+      loadCertificates();
+    } catch (error) {
+      console.error("Update failed", error);
+      toast.error("Failed to update certificate");
     }
   };
 
@@ -674,6 +884,16 @@ export default function CertificatesPage() {
                           <Download size={18} />
                         </button>
                         <button
+                          onClick={() => {
+                            setSelectedCert(cert);
+                            setShowEditor(true);
+                          }}
+                          className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
                           onClick={() => handleDeleteClick(cert.id)}
                           className="p-2.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                           title="Delete"
@@ -736,6 +956,17 @@ export default function CertificatesPage() {
             fileUrl={selectedCert.fileUrl}
             fileName={selectedCert.fileName || "certificate"}
             onClose={() => setShowViewer(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditor && selectedCert && (
+          <EditCertificateModal
+            isOpen={showEditor}
+            onClose={() => setShowEditor(false)}
+            onSave={handleUpdate}
+            initialData={selectedCert}
           />
         )}
       </AnimatePresence>

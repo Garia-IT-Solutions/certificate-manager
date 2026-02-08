@@ -1,45 +1,45 @@
 import sqlite3
 from backend.database import get_db_connection
 from backend.models.document import Document, DocumentCreate
+from typing import List, Optional
 
-def create_document(doc: DocumentCreate) -> Document:
+def create_document(doc: DocumentCreate, user_id: int) -> Document:
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute('''
-        INSERT INTO documents (docID, doc, docType, category, status, expiry, docName, issueDate, uploadDate, hidden)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        doc.docID, doc.doc, doc.docType, doc.category, doc.status, 
-        doc.expiry.isoformat(), doc.docName, doc.issueDate.isoformat(), 
-        doc.uploadDate.isoformat(), doc.hidden
-    ))
-    
+    cursor.execute(
+        '''INSERT INTO documents (docID, doc, docType, category, status, expiry, docName, issueDate, uploadDate, hidden, user_id) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (doc.docID, doc.doc, doc.docType, doc.category, doc.status, doc.expiry.isoformat(), 
+         doc.docName, doc.issueDate.isoformat(), doc.uploadDate.isoformat(), doc.hidden, user_id)
+    )
     doc_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    
-    return get_document_by_id(doc_id)
+    return Document(id=doc_id, user_id=user_id, **doc.model_dump())
 
-def get_documents() -> list[Document]:
-    conn = get_db_connection()
-    docs = conn.execute('SELECT * FROM documents').fetchall()
-    conn.close()
-    return [Document(**dict(doc)) for doc in docs]
-
-def get_document_by_id(doc_id: int) -> Document:
-    conn = get_db_connection()
-    doc = conn.execute('SELECT * FROM documents WHERE id = ?', (doc_id,)).fetchone()
-    conn.close()
-    if doc:
-        return Document(**dict(doc))
-    return None
-
-def delete_document(doc_id: int) -> bool:
+def get_documents(user_id: int) -> List[Document]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM documents WHERE id = ?', (doc_id,))
-    conn.commit()
-    deleted = cursor.rowcount > 0
+    cursor.execute('SELECT * FROM documents WHERE user_id = ?', (user_id,))
+    rows = cursor.fetchall()
     conn.close()
-    return deleted
+    return [Document(**dict(row)) for row in rows]
+
+def get_document_by_id(doc_id: int, user_id: int) -> Optional[Document]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM documents WHERE id = ? AND user_id = ?', (doc_id, user_id))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return Document(**dict(row))
+    return None
+
+def delete_document(doc_id: int, user_id: int) -> bool:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM documents WHERE id = ? AND user_id = ?', (doc_id, user_id))
+    conn.commit()
+    changes = cursor.rowcount
+    conn.close()
+    return changes > 0
