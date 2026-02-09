@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ResumeForm } from "./components/ResumeForm";
 import { ResumePreview } from "./components/ResumePreview";
 import { ResumeData, generateResumePDF } from "@/app/lib/pdf-generator";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { api } from "@/app/services/api";
 
 const INITIAL_DATA: ResumeData = {
     personalInfo: {
@@ -30,9 +31,195 @@ const INITIAL_DATA: ResumeData = {
     signatureImage: ""
 };
 
+// Helper to calculate duration between two dates
+function calculateDuration(signOn: string, signOff: string): string {
+    if (!signOn || !signOff) return "";
+    const start = new Date(signOn);
+    const end = new Date(signOff);
+    const diffMs = end.getTime() - start.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const months = Math.floor(diffDays / 30);
+    const days = diffDays % 30;
+    if (months > 0) {
+        return `${months}m ${days}d`;
+    }
+    return `${days}d`;
+}
+
+// Transform backend sea time logs to resume seaService format
+function transformSeaTimeLogs(logs: any[]): ResumeData['seaService'] {
+    return logs.map(log => ({
+        vesselName: log.vesselName || "",
+        flag: log.flag || "",
+        type: log.type || "",
+        grt: log.dwt?.toString() || "",
+        company: log.company || "",
+        rank: log.rank || "",
+        signOn: log.signOn?.split('T')[0] || "",
+        signOff: log.signOff?.split('T')[0] || "",
+        totalDuration: calculateDuration(log.signOn, log.signOff)
+    }));
+}
+
+// Transform backend certificates to resume cocs format (filter CoC types)
+function transformCertificatesToCocs(certs: any[]): ResumeData['cocs'] {
+    // Filter certificates that are CoCs (not STCW courses)
+    const cocTypes = ['coc', 'competency', 'license', 'licence'];
+    const cocCerts = certs.filter(c =>
+        cocTypes.some(t => c.certType?.toLowerCase().includes(t)) ||
+        c.certName?.toLowerCase().includes('competency') ||
+        c.certName?.toLowerCase().includes('coc')
+    );
+
+    return cocCerts.map(cert => ({
+        name: cert.certName || "",
+        grade: cert.certType || "",
+        issueDate: cert.issueDate?.split('T')[0] || "",
+        expiryDate: cert.expiry?.split('T')[0] || "",
+        number: cert.id?.toString() || "",
+        issuedBy: cert.issuedBy || ""
+    }));
+}
+
+// Transform backend certificates to resume stcwCourses format (filter STCW types)
+function transformCertificatesToStcw(certs: any[]): ResumeData['stcwCourses'] {
+    // Filter certificates that are STCW courses
+    const stcwTypes = ['stcw', 'safety', 'fire', 'survival', 'medical', 'first aid', 'pssr', 'efa', 'pst', 'aff', 'fpff'];
+    const stcwCerts = certs.filter(c =>
+        stcwTypes.some(t => c.certType?.toLowerCase().includes(t)) ||
+        stcwTypes.some(t => c.certName?.toLowerCase().includes(t))
+    );
+
+    return stcwCerts.map(cert => ({
+        course: cert.certName || "",
+        place: "",
+        issueDate: cert.issueDate?.split('T')[0] || "",
+        expiryDate: cert.expiry?.split('T')[0] || "",
+        issuedBy: cert.issuedBy || "",
+        refNo: cert.id?.toString() || ""
+    }));
+}
+
+// Transform backend documents to resume documents format
+function transformDocuments(docs: any[]): ResumeData['documents'] {
+    return docs.map(doc => ({
+        name: doc.docName || "",
+        number: doc.docID || "",
+        issueDate: doc.issueDate?.split('T')[0] || "",
+        expiryDate: doc.expiry?.split('T')[0] || "",
+        placeOfIssue: "",
+        remarks: doc.category || ""
+    }));
+}
+
 export default function ResumePage() {
     const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_DATA);
     const [errors, setErrors] = useState<Record<string, boolean>>({});
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch data from APIs on component mount
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                setIsLoading(true);
+
+                const token = localStorage.getItem("token");
+                const [documents, certificates, seaTimeLogs, profile] = await Promise.all([
+                    api.getDocuments().catch(() => []),
+                    api.getCertificates().catch(() => []),
+                    api.getSeaTimeLogs().catch(() => []),
+                    fetch('http://localhost:8000/profile', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }).then(res => res.ok ? res.json() : null).catch(() => null)
+                ]);
+
+                // Parse Profile Helper
+                const parseJSON = (str: any, fallback: any) => {
+                    try { return JSON.parse(str) || fallback; } catch { return fallback; }
+                };
+
+                // Transform and merge with initial data
+                setResumeData(prev => {
+                    const data = { ...prev };
+
+                    if (profile) {
+                        data.personalInfo = {
+                            surname: profile.last_name || "",
+                            firstName: profile.first_name || "",
+                            middleName: profile.middle_name || "",
+                            nationality: profile.nationality || "",
+                            dob: profile.dob ? profile.dob.split('T')[0] : "",
+                            placeOfBirth: profile.place_of_birth || "",
+                            postApplied: profile.job_title || "",
+                            dateAvailable: profile.date_available ? profile.date_available.split('T')[0] : "",
+                            photoUrl: profile.avatar_url || ""
+                        };
+
+                        const permAddr = parseJSON(profile.permanent_address, {});
+                        const presAddr = parseJSON(profile.present_address, {});
+
+                        // Populate Addresses
+                        data.contactInfo.permanentAddress = {
+                            line1: permAddr.line1 || "",
+                            line2: permAddr.line2 || "",
+                            city: permAddr.city || "",
+                            state: permAddr.state || "",
+                            zip: permAddr.zip || "",
+                            mobile: permAddr.mobile || profile.phone || "",
+                            email: permAddr.email || profile.email || "",
+                            airport: permAddr.airport || ""
+                        };
+
+                        data.contactInfo.presentAddress = {
+                            line1: presAddr.line1 || "",
+                            line2: presAddr.line2 || "",
+                            city: presAddr.city || "",
+                            state: presAddr.state || "",
+                            zip: presAddr.zip || "",
+                            mobile: presAddr.mobile || ""
+                        };
+
+                        // Next of Kin
+                        const nok = parseJSON(profile.next_of_kin, {});
+                        data.nextOfKin = {
+                            name: nok.name || "",
+                            relationship: nok.relationship || "",
+                            address: nok.address || "",
+                            contactNo: nok.contactNo || ""
+                        };
+
+                        // Physical
+                        const phys = parseJSON(profile.physical_description, {});
+                        data.physicalDescription = {
+                            hairColor: phys.hairColor || "",
+                            eyeColor: phys.eyeColor || "",
+                            height: phys.height || "",
+                            weight: phys.weight || "",
+                            boilerSuitSize: phys.boilerSuitSize || "",
+                            shoeSize: phys.shoeSize || ""
+                        };
+                    }
+
+                    return {
+                        ...data,
+                        documents: transformDocuments(documents),
+                        cocs: transformCertificatesToCocs(certificates),
+                        stcwCourses: transformCertificatesToStcw(certificates),
+                        seaService: transformSeaTimeLogs(seaTimeLogs)
+                    };
+                });
+
+                toast.success("Resume data loaded!");
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+                toast.error("Could not load data.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        fetchData();
+    }, []);
 
     const validateForm = () => {
         const newErrors: Record<string, boolean> = {};
@@ -43,7 +230,7 @@ export default function ResumePage() {
         if (!resumeData.personalInfo.nationality) newErrors["personalInfo.nationality"] = true;
 
         if (!resumeData.contactInfo.permanentAddress.mobile) newErrors["contactInfo.permanentAddress.mobile"] = true;
-        if (!resumeData.contactInfo.permanentAddress.email) newErrors["contactInfo.permanentAddress.email"] = true;
+        // if (!resumeData.contactInfo.permanentAddress.email) newErrors["contactInfo.permanentAddress.email"] = true;
 
         if (Object.keys(newErrors).length > 0) {
             isValid = false;
@@ -80,7 +267,8 @@ export default function ResumePage() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={handleGenerate}
-                        className="flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95"
+                        disabled={isLoading}
+                        className="flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95 disabled:opacity-50"
                     >
                         <Download size={14} /> <span>Download PDF</span>
                     </button>
@@ -97,14 +285,27 @@ export default function ResumePage() {
                                 <FileText size={20} />
                             </div>
                             <h2 className="text-xl font-bold">Edit Details</h2>
+                            {isLoading && (
+                                <div className="flex items-center gap-2 ml-auto text-zinc-400">
+                                    <Loader2 size={16} className="animate-spin" />
+                                    <span className="text-xs">Loading your data...</span>
+                                </div>
+                            )}
                         </div>
 
-                        <ResumeForm
-                            data={resumeData}
-                            onUpdate={setResumeData}
-                            onGenerate={handleGenerate}
-                            errors={errors}
-                        />
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                <Loader2 size={40} className="animate-spin text-orange-500" />
+                                <p className="text-zinc-500 text-sm">Loading your documents, certificates, and sea time logs...</p>
+                            </div>
+                        ) : (
+                            <ResumeForm
+                                data={resumeData}
+                                onUpdate={setResumeData}
+                                onGenerate={handleGenerate}
+                                errors={errors}
+                            />
+                        )}
                     </div>
                 </div>
 

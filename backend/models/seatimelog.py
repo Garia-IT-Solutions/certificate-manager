@@ -3,12 +3,13 @@ from typing import Optional
 from datetime import datetime
 
 class SeaTimeLogCreate(BaseModel):
-    imo: int
-    offNo: int
+    imo: str | int
+    offNo: str | int
     flag: str # litewawy countries
     vesselName: str
     type: str # enum
     company: str
+    dept: Optional[str] = "ENGINE" # Default to ENGINE if missing
     mainEngine: str
     bhp: float
     torque: float

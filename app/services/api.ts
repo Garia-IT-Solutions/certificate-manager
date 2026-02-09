@@ -149,4 +149,13 @@ export const api = {
         if (!res.ok) throw new Error("Failed to update profile");
         return res.json();
     },
+
+    // DASHBOARD
+    getDashboardSummary: async () => {
+        const res = await fetch(`${API_URL}/dashboard/summary`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to fetch dashboard summary");
+        return res.json();
+    },
 };

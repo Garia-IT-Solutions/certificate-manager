@@ -43,17 +43,32 @@ def create_profile(profile_data: ProfileCreate) -> Profile:
     hashed_password = get_password_hash(profile_data.password)
     
     cursor.execute('''
-        INSERT INTO profiles (first_name, last_name, email, phone, job_title, bio, skills, password_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO profiles (
+            first_name, last_name, middle_name, nationality, 
+            place_of_birth, date_available, email, phone, 
+            job_title, bio, skills, password_hash, dob, gender,
+            permanent_address, present_address, next_of_kin, physical_description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         profile_data.first_name, 
-        profile_data.last_name, 
+        profile_data.last_name,
+        profile_data.middle_name,
+        profile_data.nationality,
+        profile_data.place_of_birth,
+        profile_data.date_available, 
         profile_data.email, 
         profile_data.phone, 
         profile_data.job_title, 
         profile_data.bio, 
         json.dumps(profile_data.skills),
-        hashed_password
+        hashed_password,
+        profile_data.dob.isoformat() if profile_data.dob else None,
+        profile_data.gender,
+        profile_data.permanent_address,
+        profile_data.present_address,
+        profile_data.next_of_kin,
+        profile_data.physical_description
     ))
     
     profile_id = cursor.lastrowid
@@ -74,6 +89,10 @@ def update_profile(profile_data: ProfileUpdate, profile_id: int = 1) -> Profile:
         
     if 'password' in update_data:
         update_data['password_hash'] = get_password_hash(update_data.pop('password'))
+
+    # Remove fields that are not in the profiles table
+    update_data.pop('certificates', None)
+    update_data.pop('address', None)
 
     if not update_data:
         conn.close()

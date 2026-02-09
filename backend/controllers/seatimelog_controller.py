@@ -7,9 +7,9 @@ def create_seatimelog(log: SeaTimeLogCreate, user_id: int) -> SeaTimeLog:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        '''INSERT INTO sea_time_logs (imo, offNo, flag, vesselName, type, company, mainEngine, bhp, torque, dwt, rank, signOn, signOff, uploadDate, user_id) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, 
+        '''INSERT INTO sea_time_logs (imo, offNo, flag, vesselName, type, company, dept, mainEngine, bhp, torque, dwt, rank, signOn, signOff, uploadDate, user_id) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, log.dept,
          log.mainEngine, log.bhp, log.torque, log.dwt, log.rank, 
          log.signOn.isoformat(), log.signOff.isoformat(), log.uploadDate.isoformat(), user_id)
     )

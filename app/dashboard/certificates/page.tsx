@@ -128,6 +128,15 @@ function DeleteConfirmationDialog({
   );
 }
 
+// Certificate type options for classification
+const CERTIFICATE_TYPES = [
+  { value: "coc", label: "Certificate of Competency (CoC)", description: "Professional competency certificates" },
+  { value: "stcw", label: "STCW Course", description: "Safety training & STCW courses" },
+  { value: "license", label: "License", description: "Professional licenses & endorsements" },
+  { value: "medical", label: "Medical Certificate", description: "Health & medical certifications" },
+  { value: "other", label: "Other Certificate", description: "Other maritime certificates" },
+];
+
 function UploadModal({
   isOpen,
   onClose,
@@ -135,11 +144,33 @@ function UploadModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (file: File) => void;
+  onUpload: (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [step, setStep] = useState<"upload" | "classify">("upload");
+
+  // Classification form state
+  const [certType, setCertType] = useState("coc");
+  const [certName, setCertName] = useState("");
+  const [issuedBy, setIssuedBy] = useState("");
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expiryDate, setExpiryDate] = useState("");
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedFile(null);
+      setStep("upload");
+      setCertType("coc");
+      setCertName("");
+      setIssuedBy("");
+      setIssueDate(new Date().toISOString().split('T')[0]);
+      setExpiryDate("");
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -175,9 +206,31 @@ function UploadModal({
       return;
     }
 
+    // Move to classification step
+    setSelectedFile(file);
+    setCertName(file.name.replace(/\.[^/.]+$/, ""));
+    setStep("classify");
+  };
+
+  const handleSubmit = () => {
+    if (!selectedFile) return;
+
+    if (!certName.trim()) {
+      toast.error("Please enter a certificate name");
+      return;
+    }
+    if (!issuedBy.trim()) {
+      toast.error("Please enter the issuing authority");
+      return;
+    }
+    if (!expiryDate) {
+      toast.error("Please enter an expiry date");
+      return;
+    }
+
     setIsUploading(true);
     setTimeout(() => {
-      onUpload(file);
+      onUpload(selectedFile, certType, certName, issuedBy, issueDate, expiryDate);
       setIsUploading(false);
       onClose();
     }, 1500);
@@ -192,7 +245,14 @@ function UploadModal({
         className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
       >
         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Upload Certificate</h3>
+          <div>
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+              {step === "upload" ? "Upload Certificate" : "Classify Certificate"}
+            </h3>
+            {step === "classify" && (
+              <p className="text-xs text-zinc-500 mt-1">Step 2 of 2: Add certificate details</p>
+            )}
+          </div>
           <button
             onClick={onClose}
             disabled={isUploading}
@@ -201,50 +261,151 @@ function UploadModal({
             <X size={20} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
           </button>
         </div>
-        <div className="p-10">
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => !isUploading && fileInputRef.current?.click()}
-            className={cn(
-              "border-2 border-dashed rounded-2xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all group",
-              isDragOver
-                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10"
-                : "border-zinc-200 dark:border-zinc-800 hover:border-orange-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
-              isUploading && "cursor-not-allowed"
-            )}
-          >
-            {!isUploading ? (
-              <>
-                <div className="h-12 w-12 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <UploadCloud size={24} className="text-zinc-400 group-hover:text-orange-500" />
-                </div>
-                <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Click to upload or drag files</p>
-                <p className="text-xs text-zinc-400 mt-1">PDF, JPG, PNG (Max {SYSTEM_CONFIG.upload.maxFileSizeMB}MB)</p>
-              </>
-            ) : (
-              <>
-                <div className="h-10 w-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-3" />
-                <p className="text-xs font-bold text-orange-600 uppercase tracking-widest animate-pulse">Uploading...</p>
-              </>
-            )}
+
+        {step === "upload" ? (
+          // STEP 1: File Upload
+          <div className="p-10">
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "border-2 border-dashed rounded-2xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all group",
+                isDragOver
+                  ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10"
+                  : "border-zinc-200 dark:border-zinc-800 hover:border-orange-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              )}
+            >
+              <div className="h-12 w-12 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <UploadCloud size={24} className="text-zinc-400 group-hover:text-orange-500" />
+              </div>
+              <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Click to upload or drag files</p>
+              <p className="text-xs text-zinc-400 mt-1">PDF, JPG, PNG (Max {SYSTEM_CONFIG.upload.maxFileSizeMB}MB)</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+            />
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="hidden"
-          />
-        </div>
+        ) : (
+          // STEP 2: Classification Form
+          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+            {/* Selected File Preview */}
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <FileText size={16} className="text-orange-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{selectedFile?.name}</p>
+                <p className="text-[10px] text-zinc-400">{((selectedFile?.size || 0) / 1024).toFixed(1)} KB</p>
+              </div>
+              <button
+                onClick={() => setStep("upload")}
+                className="text-xs text-zinc-500 hover:text-orange-600"
+              >
+                Change
+              </button>
+            </div>
+
+            {/* Certificate Type Selection */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-2 block">Certificate Type *</label>
+              <div className="grid grid-cols-1 gap-2">
+                {CERTIFICATE_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setCertType(type.value)}
+                    className={cn(
+                      "p-3 rounded-xl border text-left transition-all",
+                      certType === type.value
+                        ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500"
+                        : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                    )}
+                  >
+                    <p className={cn(
+                      "text-sm font-bold",
+                      certType === type.value ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
+                    )}>
+                      {type.label}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">{type.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Certificate Name */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Certificate Name *</label>
+              <input
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+                value={certName}
+                onChange={(e) => setCertName(e.target.value)}
+                placeholder="e.g., STCW Basic Safety Training"
+              />
+            </div>
+
+            {/* Issued By */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issued By *</label>
+              <input
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+                value={issuedBy}
+                onChange={(e) => setIssuedBy(e.target.value)}
+                placeholder="e.g., Maritime Authority"
+              />
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issue Date *</label>
+                <input
+                  type="date"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Expiry Date *</label>
+                <input
+                  type="date"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+          {step === "classify" && (
+            <button
+              onClick={() => setStep("upload")}
+              disabled={isUploading}
+              className="px-4 py-2 text-xs font-bold uppercase text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
+            >
+              Back
+            </button>
+          )}
           <button
-            onClick={onClose}
+            onClick={step === "upload" ? onClose : handleSubmit}
             disabled={isUploading}
-            className="px-4 py-2 text-xs font-bold uppercase text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
+            className={cn(
+              "px-6 py-2 rounded-lg text-xs font-bold uppercase shadow-lg disabled:opacity-50",
+              step === "upload"
+                ? "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                : "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-500/20"
+            )}
           >
-            Close
+            {isUploading ? "Uploading..." : step === "upload" ? "Close" : "Upload Certificate"}
           </button>
         </div>
       </motion.div>
@@ -568,36 +729,39 @@ export default function CertificatesPage() {
     EXPIRED: certificates.filter((c) => c.status === "EXPIRED").length,
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string) => {
     try {
-      // Convert file to base64 or blob if needed by backend, 
-      // EXCEPT the current backend `CertificateCreate` expects `cert: bytes`.
-      // Python `bytes` in Pydantic usually expects a base64 encoded string or similar if JSON.
-      // However, `certificate_controller.py` uses `cert.cert` (bytes).
-      // Let's assume we send JSON with base64 encoded string for `cert`.
-
       const reader = new FileReader();
       reader.onload = async () => {
         const result = reader.result as string;
         const base64Content = result.includes(',') ? result.split(',')[1] : "";
 
-        // Calculate status/expiry logic if not done by backend
-        // Backend expects: cert, certType, issuedBy, status, expiry, certName, issueDate, uploadDate, hidden
+        // Calculate status based on expiry date
+        const today = new Date();
+        const expiry = new Date(expiryDate);
+        const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        let status = "VALID";
+        if (daysUntilExpiry < 0) {
+          status = "EXPIRED";
+        } else if (daysUntilExpiry <= 90) {
+          status = "EXPIRING";
+        }
 
         const newCertData = {
-          cert: base64Content, // sending base64
-          certType: "Type", // You might want to ask user for this
-          issuedBy: "Self Upload",
-          status: "VALID",
-          expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          certName: file.name.replace(/\.[^/.]+$/, ""),
-          issueDate: new Date().toISOString(),
+          cert: base64Content,
+          certType: certType,
+          issuedBy: issuedBy,
+          status: status,
+          expiry: new Date(expiryDate).toISOString(),
+          certName: certName,
+          issueDate: new Date(issueDate).toISOString(),
           uploadDate: new Date().toISOString(),
           hidden: false
         };
 
         await api.createCertificate(newCertData);
-        toast.success(`${file.name} uploaded successfully!`);
+        toast.success(`${certName} uploaded successfully!`);
         loadCertificates();
       };
       reader.readAsDataURL(file);

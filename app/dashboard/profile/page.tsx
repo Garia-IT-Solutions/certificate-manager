@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     User,
     Mail,
@@ -16,7 +16,12 @@ import {
     BadgeCheck,
     Award,
     Calendar,
-    ShieldCheck
+    ShieldCheck,
+    BookOpen,
+    Anchor,
+    Heart,
+    Weight,
+    Ruler
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -26,12 +31,49 @@ interface Profile {
     id: number;
     first_name: string;
     last_name: string;
+    middle_name: string;
+    nationality: string;
+    place_of_birth: string;
+    date_available: string;
     email: string;
     phone: string;
+    dob: string;
+    gender: string;
     job_title: string;
     bio: string;
+    permanent_address: string; // JSON
+    present_address: string; // JSON
+    next_of_kin: string; // JSON
+    physical_description: string; // JSON
     avatar_url?: string;
     skills: string[];
+}
+
+interface Address {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    zip: string;
+    mobile: string;
+    email?: string;
+    airport?: string;
+}
+
+interface NextOfKin {
+    name: string;
+    relationship: string;
+    address: string;
+    contactNo: string;
+}
+
+interface PhysicalDescription {
+    hairColor: string;
+    eyeColor: string;
+    height: string;
+    weight: string;
+    boilerSuitSize: string;
+    shoeSize: string;
 }
 
 // --- Initial/Mock Data ---
@@ -39,11 +81,21 @@ const MOCK_PROFILE: Profile = {
     id: 1,
     first_name: "John",
     last_name: "Doe",
+    middle_name: "",
+    nationality: "Indian",
+    place_of_birth: "Mumbai",
+    date_available: "",
     email: "john.doe@maritime.com",
     phone: "+1 (555) 0123-4567",
+    dob: "1990-01-01",
+    gender: "Male",
     job_title: "Chief Marine Engineer",
-    bio: "Experienced marine engineer with over 10 years of service on commercial vessels. Specialized in propulsion systems and safety management. Dedicated to maintaining the highest standards of maritime safety and efficiency.",
-    skills: ["Safety Management", "Propulsion Systems", "Team Leadership", "Naval Architecture", "First Aid"],
+    bio: "Experienced marine engineer with over 10 years of service on commercial vessels.",
+    permanent_address: '{"line1":"","line2":"","city":"","state":"","zip":"","mobile":"","email":"","airport":""}',
+    present_address: '{"line1":"","line2":"","city":"","state":"","zip":"","mobile":""}',
+    next_of_kin: '{"name":"","relationship":"","address":"","contactNo":""}',
+    physical_description: '{"hairColor":"","eyeColor":"","height":"","weight":"","boilerSuitSize":"","shoeSize":""}',
+    skills: ["Safety Management", "Propulsion Systems"],
     avatar_url: ""
 };
 
@@ -52,7 +104,29 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [formData, setFormData] = useState<Profile>(MOCK_PROFILE);
+
+    // State for parsed JSON fields
+    const [permAddr, setPermAddr] = useState<Address>({} as Address);
+    const [presAddr, setPresAddr] = useState<Address>({} as Address);
+    const [nok, setNok] = useState<NextOfKin>({} as NextOfKin);
+    const [physical, setPhysical] = useState<PhysicalDescription>({} as PhysicalDescription);
+    const [newSkill, setNewSkill] = useState("");
+
     const router = useRouter();
+
+    // --- Helpers ---
+    const parseJSON = (str: string, fallback: any) => {
+        try { return JSON.parse(str) || fallback; } catch { return fallback; }
+    };
+
+    const loadProfileData = (data: Profile) => {
+        setProfile(data);
+        setFormData(data);
+        setPermAddr(parseJSON(data.permanent_address, { line1: "", line2: "", city: "", state: "", zip: "", mobile: "", email: "", airport: "" }));
+        setPresAddr(parseJSON(data.present_address, { line1: "", line2: "", city: "", state: "", zip: "", mobile: "" }));
+        setNok(parseJSON(data.next_of_kin, { name: "", relationship: "", address: "", contactNo: "" }));
+        setPhysical(parseJSON(data.physical_description, { hairColor: "", eyeColor: "", height: "", weight: "", boilerSuitSize: "", shoeSize: "" }));
+    };
 
     // --- Fetch Profile ---
     useEffect(() => {
@@ -72,16 +146,17 @@ export default function ProfilePage() {
 
                 if (res.ok) {
                     const data = await res.json();
-                    setProfile(data);
-                    setFormData(data);
+                    loadProfileData(data);
                 } else if (res.status === 401) {
                     localStorage.removeItem("token");
                     router.push("/login");
                 } else {
                     console.warn("Backend profile not found or error, using mock.");
+                    loadProfileData(MOCK_PROFILE);
                 }
             } catch (e) {
                 console.warn("Failed to connect to backend, using mock data.", e);
+                loadProfileData(MOCK_PROFILE);
             } finally {
                 setIsLoading(false);
             }
@@ -90,9 +165,14 @@ export default function ProfilePage() {
         fetchProfile();
     }, []);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    // Generic handler for nested JSON fields
+    const handleNestedChange = (setter: any, field: string, value: string) => {
+        setter((prev: any) => ({ ...prev, [field]: value }));
     };
 
     const handleSave = async () => {
@@ -104,30 +184,58 @@ export default function ProfilePage() {
                 return;
             }
 
+            // Prepare payload with stringified JSONs
+            const payload = {
+                ...formData,
+                permanent_address: JSON.stringify(permAddr),
+                present_address: JSON.stringify(presAddr),
+                next_of_kin: JSON.stringify(nok),
+                physical_description: JSON.stringify(physical)
+            };
+
             const res = await fetch('http://localhost:8000/profile', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
-            const updated = res.ok ? await res.json() : formData;
-            setProfile(updated);
+
+            const updated = res.ok ? await res.json() : payload;
+            loadProfileData(updated);
             setIsEditing(false);
             toast.success("Profile updated successfully!");
         } catch (e) {
             // Fallback
-            setProfile(formData);
-            setIsEditing(false);
             toast.error("Backend unreachable, saved locally until refresh.");
+            setIsEditing(false);
         }
     };
 
     const handleCancel = () => {
-        setFormData(profile);
+        loadProfileData(profile);
         setIsEditing(false);
     };
+
+    // Reusable Input Component
+    const InputGroup = ({ label, name, value, onChange, type = "text", placeholder = "", className = "" }: any) => (
+        <div className={cn("space-y-1", className)}>
+            <label className="text-[10px] uppercase font-bold text-zinc-500">{label}</label>
+            {isEditing ? (
+                <input
+                    type={type}
+                    name={name}
+                    value={value || ""}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-sm focus:border-orange-500 outline-none transition-all"
+                />
+            ) : (
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 min-h-[20px]">{value || "-"}</p>
+            )}
+        </div>
+    );
 
     return (
         <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white p-6 md:p-10 pb-40">
@@ -143,18 +251,28 @@ export default function ProfilePage() {
                             Manage your personal information & settings
                         </p>
                     </div>
-                    <button
-                        onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                        className={cn(
-                            "flex items-center gap-2 px-6 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95",
-                            isEditing
-                                ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                                : "bg-zinc-900 dark:bg-white text-white dark:text-black"
+                    <div className="flex gap-2">
+                        {isEditing && (
+                            <button
+                                onClick={handleCancel}
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all text-zinc-500"
+                            >
+                                <X size={14} /> Cancel
+                            </button>
                         )}
-                    >
-                        {isEditing ? <Save size={14} /> : <Edit size={14} />}
-                        <span>{isEditing ? "Save Changes" : "Edit Profile"}</span>
-                    </button>
+                        <button
+                            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                            className={cn(
+                                "flex items-center gap-2 px-6 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95",
+                                isEditing
+                                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                                    : "bg-zinc-900 dark:bg-white text-white dark:text-black"
+                            )}
+                        >
+                            {isEditing ? <Save size={14} /> : <Edit size={14} />}
+                            <span>{isEditing ? "Save Changes" : "Edit Profile"}</span>
+                        </button>
+                    </div>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -171,27 +289,56 @@ export default function ProfilePage() {
 
                             <div className="relative z-10 mb-6 group">
                                 <div className="w-32 h-32 rounded-full bg-zinc-100 dark:bg-zinc-900 border-4 border-white dark:border-zinc-800 shadow-xl overflow-hidden flex items-center justify-center">
-                                    {profile.avatar_url ? (
-                                        <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                    {formData.avatar_url ? (
+                                        <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
                                         <User size={64} className="text-zinc-300 dark:text-zinc-700" />
                                     )}
                                 </div>
                                 {isEditing && (
-                                    <button className="absolute bottom-0 right-0 p-2 bg-orange-500 text-white rounded-full shadow-lg hover:bg-orange-600 transition-colors">
-                                        <Camera size={16} />
-                                    </button>
+                                    <>
+                                        <input
+                                            type="file"
+                                            id="pfp-upload"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        const base64String = reader.result as string;
+                                                        setFormData(prev => ({ ...prev, avatar_url: base64String }));
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="pfp-upload"
+                                            className="absolute bottom-0 right-0 p-2 bg-orange-500 text-white rounded-full shadow-lg hover:bg-orange-600 transition-colors cursor-pointer"
+                                        >
+                                            <Camera size={16} />
+                                        </label>
+                                    </>
                                 )}
                             </div>
 
-                            <div className="relative z-10 w-full">
+                            <div className="relative z-10 w-full space-y-4">
                                 {isEditing ? (
-                                    <div className="space-y-3 mb-4">
+                                    <div className="space-y-3">
                                         <input
                                             name="first_name"
                                             value={formData.first_name}
                                             onChange={handleInputChange}
                                             placeholder="First Name"
+                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-sm focus:border-orange-500 outline-none"
+                                        />
+                                        <input
+                                            name="middle_name" // New
+                                            value={formData.middle_name}
+                                            onChange={handleInputChange}
+                                            placeholder="Middle Name"
                                             className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-sm focus:border-orange-500 outline-none"
                                         />
                                         <input
@@ -206,13 +353,13 @@ export default function ProfilePage() {
                                             value={formData.job_title}
                                             onChange={handleInputChange}
                                             placeholder="Job Title"
-                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs font-mono focus:border-orange-500 outline-none"
+                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs font-mono focus:border-orange-500 outline-none mt-2"
                                         />
                                     </div>
                                 ) : (
                                     <>
                                         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">
-                                            {profile.first_name} {profile.last_name}
+                                            {profile.first_name} {profile.middle_name} {profile.last_name}
                                         </h2>
                                         <p className="text-sm font-mono text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-6">
                                             {profile.job_title}
@@ -274,15 +421,54 @@ export default function ProfilePage() {
                                 Skills & Certifications
                             </h3>
                             <div className="flex flex-wrap gap-2">
-                                {profile.skills.map((skill, i) => (
-                                    <span key={i} className="px-3 py-1 bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full border border-zinc-200 dark:border-zinc-800">
+                                {formData.skills.map((skill, i) => (
+                                    <span key={i} className="group relative px-3 py-1 bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full border border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
                                         {skill}
+                                        {isEditing && (
+                                            <button
+                                                onClick={() => {
+                                                    const newSkills = [...formData.skills];
+                                                    newSkills.splice(i, 1);
+                                                    setFormData(prev => ({ ...prev, skills: newSkills }));
+                                                }}
+                                                className="hover:text-red-500"
+                                            >
+                                                <X size={10} />
+                                            </button>
+                                        )}
                                     </span>
                                 ))}
                                 {isEditing && (
-                                    <button className="px-3 py-1 bg-white dark:bg-zinc-950 text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-full text-xs font-bold hover:text-orange-500 hover:border-orange-500 transition-colors">
-                                        + Add Skill
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={newSkill}
+                                            onChange={(e) => setNewSkill(e.target.value)}
+                                            placeholder="New Skill"
+                                            className="px-3 py-1 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full border border-zinc-200 dark:border-zinc-800 w-24 focus:w-32 transition-all outline-none focus:border-orange-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const value = newSkill.trim();
+                                                    if (value) {
+                                                        setFormData(prev => ({ ...prev, skills: [...prev.skills, value] }));
+                                                        setNewSkill("");
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const value = newSkill.trim();
+                                                if (value) {
+                                                    setFormData(prev => ({ ...prev, skills: [...prev.skills, value] }));
+                                                    setNewSkill("");
+                                                }
+                                            }}
+                                            className="p-1 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors"
+                                        >
+                                            <div className="w-3 h-3 flex items-center justify-center">+</div>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </motion.div>
@@ -323,37 +509,92 @@ export default function ProfilePage() {
                             )}
                         </motion.div>
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.3 }}
-                                className="p-6 rounded-[2rem] bg-zinc-900 dark:bg-white text-white dark:text-black flex items-center justify-between"
-                            >
-                                <div>
-                                    <p className="text-xs font-mono opacity-60 uppercase tracking-widest mb-1">Experience</p>
-                                    <h4 className="text-3xl font-light">12 <span className="text-sm font-bold opacity-60">Years</span></h4>
+                        {/* Personal Details - NEW */}
+                        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
+                                    <User size={24} strokeWidth={1.5} />
                                 </div>
-                                <div className="h-12 w-12 rounded-full bg-white/10 dark:bg-black/10 flex items-center justify-center">
-                                    <Briefcase size={20} />
-                                </div>
-                            </motion.div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Personal Details</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <InputGroup label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleInputChange} />
+                                <InputGroup label="Place of Birth" name="place_of_birth" value={formData.place_of_birth} onChange={handleInputChange} />
+                                <InputGroup label="Nationality" name="nationality" value={formData.nationality} onChange={handleInputChange} />
+                                <InputGroup label="Gender" name="gender" value={formData.gender} onChange={handleInputChange} />
+                                <InputGroup label="Date Available" name="date_available" type="date" value={formData.date_available} onChange={handleInputChange} />
+                            </div>
+                        </div>
 
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.4 }}
-                                className="p-6 rounded-[2rem] bg-orange-500 text-white flex items-center justify-between"
-                            >
+                        {/* Addresses - NEW */}
+                        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
+                                    <MapPin size={24} strokeWidth={1.5} />
+                                </div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Address & Contact</h3>
+                            </div>
+
+                            <div className="space-y-8">
                                 <div>
-                                    <p className="text-xs font-mono opacity-80 uppercase tracking-widest mb-1">Performance</p>
-                                    <h4 className="text-3xl font-light">4.9 <span className="text-sm font-bold opacity-80">/ 5.0</span></h4>
+                                    <h4 className="text-xs font-bold uppercase text-zinc-400 mb-4">Permanent Address</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <InputGroup label="Line 1" value={permAddr.line1} onChange={(e: any) => handleNestedChange(setPermAddr, 'line1', e.target.value)} className="md:col-span-2" />
+                                        <InputGroup label="Line 2" value={permAddr.line2} onChange={(e: any) => handleNestedChange(setPermAddr, 'line2', e.target.value)} className="md:col-span-2" />
+                                        <InputGroup label="City" value={permAddr.city} onChange={(e: any) => handleNestedChange(setPermAddr, 'city', e.target.value)} />
+                                        <InputGroup label="State" value={permAddr.state} onChange={(e: any) => handleNestedChange(setPermAddr, 'state', e.target.value)} />
+                                        <InputGroup label="Zip" value={permAddr.zip} onChange={(e: any) => handleNestedChange(setPermAddr, 'zip', e.target.value)} />
+                                        <InputGroup label="Airport" value={permAddr.airport} onChange={(e: any) => handleNestedChange(setPermAddr, 'airport', e.target.value)} />
+                                    </div>
                                 </div>
-                                <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center">
-                                    <Award size={20} />
+                                <div className="w-full h-px bg-zinc-100 dark:bg-zinc-800" />
+                                <div>
+                                    <h4 className="text-xs font-bold uppercase text-zinc-400 mb-4">Present Address</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <InputGroup label="Line 1" value={presAddr.line1} onChange={(e: any) => handleNestedChange(setPresAddr, 'line1', e.target.value)} className="md:col-span-2" />
+                                        <InputGroup label="City" value={presAddr.city} onChange={(e: any) => handleNestedChange(setPresAddr, 'city', e.target.value)} />
+                                        <InputGroup label="State" value={presAddr.state} onChange={(e: any) => handleNestedChange(setPresAddr, 'state', e.target.value)} />
+                                        <InputGroup label="Zip" value={presAddr.zip} onChange={(e: any) => handleNestedChange(setPresAddr, 'zip', e.target.value)} />
+                                    </div>
                                 </div>
-                            </motion.div>
+                            </div>
+                        </div>
+
+                        {/* Physical & Next of Kin - NEW */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Physical */}
+                            <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
+                                        <Ruler size={24} strokeWidth={1.5} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Physical Stats</h3>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <InputGroup label="Height" value={physical.height} onChange={(e: any) => handleNestedChange(setPhysical, 'height', e.target.value)} />
+                                    <InputGroup label="Weight" value={physical.weight} onChange={(e: any) => handleNestedChange(setPhysical, 'weight', e.target.value)} />
+                                    <InputGroup label="Hair" value={physical.hairColor} onChange={(e: any) => handleNestedChange(setPhysical, 'hairColor', e.target.value)} />
+                                    <InputGroup label="Eyes" value={physical.eyeColor} onChange={(e: any) => handleNestedChange(setPhysical, 'eyeColor', e.target.value)} />
+                                    <InputGroup label="Shoes" value={physical.shoeSize} onChange={(e: any) => handleNestedChange(setPhysical, 'shoeSize', e.target.value)} />
+                                    <InputGroup label="Boiler Suit" value={physical.boilerSuitSize} onChange={(e: any) => handleNestedChange(setPhysical, 'boilerSuitSize', e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Next of Kin */}
+                            <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl text-rose-600 dark:text-rose-400">
+                                        <Heart size={24} strokeWidth={1.5} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Next of Kin</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    <InputGroup label="Name" value={nok.name} onChange={(e: any) => handleNestedChange(setNok, 'name', e.target.value)} />
+                                    <InputGroup label="Relationship" value={nok.relationship} onChange={(e: any) => handleNestedChange(setNok, 'relationship', e.target.value)} />
+                                    <InputGroup label="Contact" value={nok.contactNo} onChange={(e: any) => handleNestedChange(setNok, 'contactNo', e.target.value)} />
+                                    <InputGroup label="Address" value={nok.address} onChange={(e: any) => handleNestedChange(setNok, 'address', e.target.value)} />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Recent Activity / System Information */}
