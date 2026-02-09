@@ -69,9 +69,16 @@ def init_db():
             rank TEXT,
             signOn TEXT,
             signOff TEXT,
-            uploadDate TEXT
+            uploadDate TEXT,
+            user_id INTEGER
         )
     ''')
+    
+    # Check if user_id column exists in sea_time_logs (migration)
+    cursor.execute("PRAGMA table_info(sea_time_logs)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'user_id' not in columns:
+        cursor.execute("ALTER TABLE sea_time_logs ADD COLUMN user_id INTEGER")
 
     # Create Documents Table
     cursor.execute('''

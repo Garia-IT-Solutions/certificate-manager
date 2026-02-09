@@ -10,23 +10,24 @@ import { toast, Toaster } from "sonner";
 
 const INITIAL_DATA: ResumeData = {
     personalInfo: {
-        surname: "", middleName: "", firstName: "", nationality: "", dob: "", placeOfBirth: "", postApplied: "", dateAvailable: ""
+        surname: "", middleName: "", firstName: "", nationality: "", dob: "", placeOfBirth: "", postApplied: "", dateAvailable: "", photoUrl: ""
     },
     contactInfo: {
         permanentAddress: { line1: "", line2: "", city: "", state: "", zip: "", mobile: "", email: "", airport: "" },
         presentAddress: { line1: "", line2: "", city: "", state: "", zip: "", mobile: "" }
     },
-    documents: [
-        { name: "Passport", number: "", issueDate: "", expiryDate: "", placeOfIssue: "" },
-        { name: "CDC (Indian)", number: "", issueDate: "", expiryDate: "", placeOfIssue: "" },
-        { name: "US Visa", number: "", issueDate: "", expiryDate: "", placeOfIssue: "" },
-        { name: "Indos No", number: "", issueDate: "", expiryDate: "", placeOfIssue: "" },
-        { name: "Yellow Fever", number: "", issueDate: "", expiryDate: "", placeOfIssue: "" }
-    ],
+    documents: [],
     cocs: [],
     education: { institute: "", from: "", to: "", degree: "", grade: "", yearPassed: "" },
     stcwCourses: [],
-    seaService: []
+    seaService: [],
+    educationalQualification: { degree: "", sscMarks: "", hscMarks: "", hscPcmMarks: "" },
+    nextOfKin: { name: "", relationship: "", address: "", contactNo: "" },
+    physicalDescription: { hairColor: "", eyeColor: "", height: "", weight: "", boilerSuitSize: "", shoeSize: "" },
+    strengths: "",
+    miscellaneousRemarks: "",
+    declarationDate: new Date().toISOString().split('T')[0],
+    signatureImage: ""
 };
 
 export default function ResumePage() {

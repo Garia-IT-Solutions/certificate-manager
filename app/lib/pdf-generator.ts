@@ -43,6 +43,7 @@ export interface ResumeData {
         remarks?: string;
     }>;
     cocs: Array<{
+        name: string;
         grade: string;
         issueDate: string;
         expiryDate: string;
@@ -76,6 +77,30 @@ export interface ResumeData {
         signOff: string;
         totalDuration: string;
     }>;
+    educationalQualification: {
+        degree: string;
+        sscMarks: string;
+        hscMarks: string;
+        hscPcmMarks: string;
+    };
+    nextOfKin: {
+        name: string;
+        relationship: string;
+        address: string;
+        contactNo: string;
+    };
+    physicalDescription: {
+        hairColor: string;
+        eyeColor: string;
+        height: string;
+        weight: string;
+        boilerSuitSize: string;
+        shoeSize: string;
+    };
+    strengths: string;
+    miscellaneousRemarks: string;
+    declarationDate: string;
+    signatureImage?: string;
 }
 
 export const generateResumePDF = (data: ResumeData) => {
@@ -108,7 +133,7 @@ export const generateResumePDF = (data: ResumeData) => {
                 { content: `Surname:  ${data.personalInfo.surname.toUpperCase()}`, styles: { fontStyle: 'bold' } },
                 { content: `Middle Name:  ${data.personalInfo.middleName.toUpperCase()}`, styles: { fontStyle: 'bold' } },
                 { content: `First Name:  ${data.personalInfo.firstName.toUpperCase()}`, styles: { fontStyle: 'bold' } },
-                { content: 'PASSPORT SIZE\nPHOTO', rowSpan: 3, styles: { halign: 'center', valign: 'middle', minCellWidth: 30 } }
+                { content: data.personalInfo.photoUrl ? '' : 'PASSPORT SIZE\nPHOTO', rowSpan: 3, styles: { halign: 'center', valign: 'middle', minCellWidth: 30 } }
             ],
             [
                 { content: `Nationality:  ${data.personalInfo.nationality.toUpperCase()}`, styles: { fontStyle: 'bold' } },
@@ -135,7 +160,40 @@ export const generateResumePDF = (data: ResumeData) => {
             2: { cellWidth: 50 },
             3: { cellWidth: 40 }
         },
-        margin: { left: margin, right: margin }
+        margin: { left: margin, right: margin },
+        didDrawCell: (hookData) => {
+            // Draw photo in the last column cell if available
+            if (hookData.column.index === 3 && hookData.row.index === 0 && data.personalInfo.photoUrl) {
+                const cellX = hookData.cell.x;
+                const cellY = hookData.cell.y;
+                const cellW = hookData.cell.width;
+                const cellH = hookData.cell.height;
+
+                // Passport photo standard ratio is 35mm x 45mm (width:height = 35:45 ≈ 0.78)
+                const passportRatio = 35 / 45;
+                const maxW = cellW - 4;
+                const maxH = cellH - 4;
+
+                // Calculate dimensions that fit within cell while maintaining passport ratio
+                let photoW = maxW;
+                let photoH = photoW / passportRatio;
+
+                if (photoH > maxH) {
+                    photoH = maxH;
+                    photoW = photoH * passportRatio;
+                }
+
+                // Center the photo in the cell
+                const offsetX = cellX + (cellW - photoW) / 2;
+                const offsetY = cellY + (cellH - photoH) / 2;
+
+                try {
+                    doc.addImage(data.personalInfo.photoUrl, 'JPEG', offsetX, offsetY, photoW, photoH);
+                } catch (e) {
+                    console.warn('Could not add passport photo to PDF:', e);
+                }
+            }
+        }
     });
 
     // Helper to get safe finalY
@@ -188,7 +246,6 @@ export const generateResumePDF = (data: ResumeData) => {
         headStyles: {
             fontSize: 0, // Hide header
             cellPadding: 0,
-            lineHeight: 0,
             minCellHeight: 0
         },
         columnStyles: {
@@ -291,7 +348,74 @@ export const generateResumePDF = (data: ResumeData) => {
         margin: { left: margin, right: margin }
     });
 
-    currentY = getFinalY() + 10;
+    currentY = getFinalY() + 5;
+
+    // --- EDUCATIONAL QUALIFICATION ---
+    if (data.educationalQualification && (data.educationalQualification.degree || data.educationalQualification.sscMarks)) {
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                [{ content: `Educational Qualification: ${data.educationalQualification.degree}`, colSpan: 3, styles: { fontStyle: 'bold' } }],
+                [
+                    `S.S.C (10th) Marks : ${data.educationalQualification.sscMarks}`,
+                    `H.S.C (12th) Marks : ${data.educationalQualification.hscMarks}`,
+                    `H.S.C. (PCM) ${data.educationalQualification.hscPcmMarks}`
+                ]
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2, lineColor: 0, lineWidth: 0.1, font: 'times' },
+            margin: { left: margin, right: margin }
+        });
+        currentY = getFinalY() + 3;
+    }
+
+    // --- NEXT OF KIN ---
+    if (data.nextOfKin && (data.nextOfKin.name || data.nextOfKin.address)) {
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                [
+                    { content: `Next of Kin Name: ${data.nextOfKin.name.toUpperCase()}`, styles: { fontStyle: 'bold' } },
+                    { content: `Relationship: ${data.nextOfKin.relationship.toUpperCase()}` }
+                ],
+                [
+                    { content: `Address: ${data.nextOfKin.address}`, colSpan: 2 }
+                ],
+                [
+                    { content: `Contact no. ${data.nextOfKin.contactNo}`, colSpan: 2 }
+                ]
+            ],
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 2, lineColor: 0, lineWidth: 0.1, font: 'times' },
+            tableLineColor: 0,
+            tableLineWidth: 0.1,
+            margin: { left: margin, right: margin }
+        });
+        currentY = getFinalY() + 3;
+    }
+
+    // --- PHYSICAL DESCRIPTION ---
+    if (data.physicalDescription && (data.physicalDescription.height || data.physicalDescription.hairColor)) {
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                [
+                    `Colour of Hair / Eyes: ${data.physicalDescription.hairColor.toUpperCase()}${data.physicalDescription.eyeColor ? ' / ' + data.physicalDescription.eyeColor.toUpperCase() : ''}`,
+                    `Height: ${data.physicalDescription.height}`,
+                    `Weight: ${data.physicalDescription.weight}`
+                ],
+                [
+                    `Boiler Suit Size: ${data.physicalDescription.boilerSuitSize.toUpperCase()}`,
+                    `Safety Shoe Size: ${data.physicalDescription.shoeSize}`,
+                    ''
+                ]
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2, lineColor: 0, lineWidth: 0.1, font: 'times' },
+            margin: { left: margin, right: margin }
+        });
+        currentY = getFinalY() + 5;
+    }
 
     // --- SEA SERVICE ---
     if (isNaN(currentY) || currentY > 250) {
@@ -319,6 +443,81 @@ export const generateResumePDF = (data: ResumeData) => {
         columnStyles: { 0: { halign: 'left' } },
         margin: { left: margin, right: margin }
     });
+
+    currentY = getFinalY() + 5;
+
+    // --- STRENGTHS ---
+    if (data.strengths) {
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                [{ content: 'STRENGTHS:', styles: { fontStyle: 'bold' } }],
+                [data.strengths]
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2, lineColor: 0, lineWidth: 0.1, font: 'times' },
+            margin: { left: margin, right: margin }
+        });
+        currentY = getFinalY() + 3;
+    }
+
+    // --- MISCELLANEOUS REMARKS ---
+    if (data.miscellaneousRemarks) {
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                [{ content: 'MISCELLANEOUS REMARKS:', styles: { fontStyle: 'bold' } }],
+                [data.miscellaneousRemarks]
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2, lineColor: 0, lineWidth: 0.1, font: 'times' },
+            margin: { left: margin, right: margin }
+        });
+    }
+
+    currentY = getFinalY() + 8;
+
+    // --- DECLARATION ---
+    doc.setFont('times', 'bolditalic');
+    doc.setFontSize(10);
+    doc.text('DECLARATION:', margin, currentY);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9);
+    currentY += 5;
+    doc.text('I hereby declare that the information furnished above is true to the best of my knowledge.', margin, currentY);
+    currentY += 12;
+    doc.text(`Date: ${data.declarationDate || '___________'}`, margin, currentY);
+
+    // Add signature image or text line
+    if (data.signatureImage) {
+        try {
+            // Get image properties to calculate proper dimensions
+            const imgProps = doc.getImageProperties(data.signatureImage);
+            const imgRatio = imgProps.width / imgProps.height;
+
+            // Set max dimensions for signature
+            const maxSigHeight = 12;
+            const maxSigWidth = 40;
+
+            let sigW = maxSigWidth;
+            let sigH = sigW / imgRatio;
+
+            if (sigH > maxSigHeight) {
+                sigH = maxSigHeight;
+                sigW = sigH * imgRatio;
+            }
+
+            // Position signature image above the text
+            const sigX = pageWidth - margin - sigW;
+            doc.addImage(data.signatureImage, 'PNG', sigX, currentY - sigH - 2, sigW, sigH);
+            doc.text('Signature', sigX + sigW / 2, currentY + 2, { align: 'center' });
+        } catch (e) {
+            console.warn('Could not add signature to PDF:', e);
+            doc.text('Signature: ___________________', pageWidth - margin - 60, currentY);
+        }
+    } else {
+        doc.text('Signature: ___________________', pageWidth - margin - 60, currentY);
+    }
 
     // Save the PDF
     doc.save(`${data.personalInfo.surname || 'Resume'}_${data.personalInfo.firstName || 'CV'}.pdf`);

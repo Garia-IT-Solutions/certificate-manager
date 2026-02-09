@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ResumeData } from "@/app/lib/pdf-generator";
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, FileText, Anchor, Award, BookOpen, MapPin, User, AlertCircle } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, FileText, Anchor, Award, BookOpen, MapPin, User, AlertCircle, Upload, Image } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -48,15 +48,65 @@ const InputGroup = ({ label, value, onChange, type = "text", className = "", has
     </div>
 );
 
+const ImageUpload = ({ label, value, onChange, className = "" }: { label: string; value?: string; onChange: (base64: string) => void; className?: string }) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                onChange(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    return (
+        <div className={className}>
+            <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">{label}</label>
+            <div className="flex items-center gap-3">
+                {value ? (
+                    <div className="relative">
+                        <img src={value} alt={label} className="w-20 h-24 object-cover rounded-lg border border-zinc-200 dark:border-zinc-800" />
+                        <button
+                            onClick={() => onChange("")}
+                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        >
+                            <Trash2 size={10} />
+                        </button>
+                    </div>
+                ) : (
+                    <label className="w-20 h-24 flex flex-col items-center justify-center gap-1 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
+                        <Upload size={16} className="text-zinc-400" />
+                        <span className="text-[8px] text-zinc-400 uppercase">Upload</span>
+                        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                    </label>
+                )}
+            </div>
+        </div>
+    );
+};
+
 export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormProps) {
     const [activeSection, setActiveSection] = useState<string | null>("personal");
+    const [hiddenSections, setHiddenSections] = useState<string[]>([]);
 
     const handleChange = (section: keyof ResumeData, field: string, value: any, subSection?: string) => {
         const newData = { ...data };
+
+        // Ensure section exists for object-type sections
+        if (newData[section] === undefined) {
+            (newData as any)[section] = {};
+        }
+
         if (subSection && typeof newData[section] === 'object' && !Array.isArray(newData[section])) {
-            // Handle nested objects like contactInfo.permanentAddress
             (newData[section] as any)[subSection] = {
                 ...(newData[section] as any)[subSection],
+                [field]: value
+            };
+        } else if (typeof newData[section] === 'object' && !Array.isArray(newData[section])) {
+            // Handle object sections like educationalQualification, nextOfKin, physicalDescription
+            (newData as any)[section] = {
+                ...(newData[section] as any),
                 [field]: value
             };
         } else {
@@ -80,7 +130,7 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
         if (section === 'seaService') {
             newItem = { vesselName: "", flag: "", type: "", grt: "", company: "", rank: "", signOn: "", signOff: "", totalDuration: "" };
         } else if (section === 'cocs') {
-            newItem = { grade: "", issueDate: "", expiryDate: "", number: "", issuedBy: "" };
+            newItem = { name: "", grade: "", issueDate: "", expiryDate: "", number: "", issuedBy: "" };
         } else if (section === 'stcwCourses') {
             newItem = { course: "", place: "", issueDate: "", expiryDate: "", issuedBy: "", refNo: "" };
         } else if (section === 'documents') {
@@ -107,28 +157,82 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
         setActiveSection(activeSection === section ? null : section);
     };
 
+    const hideSection = (sectionId: string, sectionKey: keyof ResumeData) => {
+        setHiddenSections([...hiddenSections, sectionId]);
+        // Optional: Clear data when hiding? Let's keep it for now in case they restore it.
+        // If we strictly want to 'delete', we should clear. 
+        // For now, let's just hide the UI. The user can clear data manually if they want, 
+        // OR we update the PDF generator to ignore hidden/empty sections.
+        // Better: Clear the data to be safe and consistent with "Delete".
+        let newData = { ...data };
+        if (sectionKey === 'education') {
+            newData.education = { institute: "", from: "", to: "", degree: "", grade: "", yearPassed: "" };
+        } else if (Array.isArray(newData[sectionKey])) {
+            (newData[sectionKey] as any) = [];
+        }
+        onUpdate(newData);
+    };
+
+    const showSection = (sectionId: string) => {
+        setHiddenSections(hiddenSections.filter(id => id !== sectionId));
+        setActiveSection(sectionId);
+    };
+
+    const CustomSectionHeader = ({ title, sectionId, icon: Icon, sectionKey }: any) => (
+        <div className={cn(
+            "w-full flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl mb-2 transition-all",
+            activeSection === sectionId ? 'ring-1 ring-orange-500 border-orange-500' : ''
+        )}>
+            <button onClick={() => toggleSection(sectionId)} className="flex-1 flex items-center gap-3 text-left">
+                <div className={cn("p-2 rounded-lg", activeSection === sectionId ? 'bg-orange-50 text-orange-600' : 'bg-zinc-100 text-zinc-500')}>
+                    <Icon size={18} />
+                </div>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200">{title}</span>
+            </button>
+            <div className="flex items-center gap-2">
+                {sectionId !== 'personal' && sectionId !== 'contact' && (
+                    <button onClick={(e) => { e.stopPropagation(); hideSection(sectionId, sectionKey); }} className="p-2 text-zinc-400 hover:text-red-500 transition-colors" title="Delete Section">
+                        <Trash2 size={16} />
+                    </button>
+                )}
+                <button onClick={() => toggleSection(sectionId)}>
+                    {activeSection === sectionId ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-3 pb-20">
-            {/* PERSONAL INFO */}
+            {/* PERSONAL INFO - Always Visible */}
             <div>
-                <SectionHeader title="Personal Information" sectionId="personal" icon={User} activeSection={activeSection} toggleSection={toggleSection} />
+                <CustomSectionHeader title="Personal Information" sectionId="personal" icon={User} sectionKey="personalInfo" />
                 <AnimatePresence>
                     {activeSection === "personal" && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                             <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                <div className="grid grid-cols-3 gap-3">
-                                    <InputGroup label="Surname" value={data.personalInfo.surname} onChange={(v: string) => handleChange("personalInfo", "surname", v)} hasError={errors["personalInfo.surname"]} />
-                                    <InputGroup label="First Name" value={data.personalInfo.firstName} onChange={(v: string) => handleChange("personalInfo", "firstName", v)} hasError={errors["personalInfo.firstName"]} />
-                                    <InputGroup label="Middle Name" value={data.personalInfo.middleName} onChange={(v: string) => handleChange("personalInfo", "middleName", v)} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <InputGroup label="Nationality" value={data.personalInfo.nationality} onChange={(v: string) => handleChange("personalInfo", "nationality", v)} hasError={errors["personalInfo.nationality"]} />
-                                    <InputGroup label="Date of Birth" type="date" value={data.personalInfo.dob} onChange={(v: string) => handleChange("personalInfo", "dob", v)} hasError={errors["personalInfo.dob"]} />
-                                    <InputGroup label="Place of Birth" value={data.personalInfo.placeOfBirth} onChange={(v: string) => handleChange("personalInfo", "placeOfBirth", v)} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <InputGroup label="Post Applied For" value={data.personalInfo.postApplied} onChange={(v: string) => handleChange("personalInfo", "postApplied", v)} hasError={errors["personalInfo.postApplied"]} />
-                                    <InputGroup label="Date Available" value={data.personalInfo.dateAvailable} onChange={(v: string) => handleChange("personalInfo", "dateAvailable", v)} />
+                                <div className="flex gap-4">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <InputGroup label="Surname" value={data.personalInfo.surname} onChange={(v: string) => handleChange("personalInfo", "surname", v)} hasError={errors["personalInfo.surname"]} />
+                                            <InputGroup label="First Name" value={data.personalInfo.firstName} onChange={(v: string) => handleChange("personalInfo", "firstName", v)} hasError={errors["personalInfo.firstName"]} />
+                                            <InputGroup label="Middle Name" value={data.personalInfo.middleName} onChange={(v: string) => handleChange("personalInfo", "middleName", v)} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <InputGroup label="Nationality" value={data.personalInfo.nationality} onChange={(v: string) => handleChange("personalInfo", "nationality", v)} hasError={errors["personalInfo.nationality"]} />
+                                            <InputGroup label="Date of Birth" type="date" value={data.personalInfo.dob} onChange={(v: string) => handleChange("personalInfo", "dob", v)} hasError={errors["personalInfo.dob"]} />
+                                            <InputGroup label="Place of Birth" value={data.personalInfo.placeOfBirth} onChange={(v: string) => handleChange("personalInfo", "placeOfBirth", v)} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <InputGroup label="Post Applied For" value={data.personalInfo.postApplied} onChange={(v: string) => handleChange("personalInfo", "postApplied", v)} hasError={errors["personalInfo.postApplied"]} />
+                                            <InputGroup label="Date Available" value={data.personalInfo.dateAvailable} onChange={(v: string) => handleChange("personalInfo", "dateAvailable", v)} />
+                                        </div>
+                                    </div>
+                                    <ImageUpload
+                                        label="Passport Photo"
+                                        value={data.personalInfo.photoUrl}
+                                        onChange={(base64) => handleChange("personalInfo", "photoUrl", base64)}
+                                    />
                                 </div>
                             </div>
                         </motion.div>
@@ -136,9 +240,9 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                 </AnimatePresence>
             </div>
 
-            {/* CONTACT INFO */}
+            {/* CONTACT INFO - Always Visible */}
             <div>
-                <SectionHeader title="Address & Contact" sectionId="contact" icon={MapPin} activeSection={activeSection} toggleSection={toggleSection} />
+                <CustomSectionHeader title="Address & Contact" sectionId="contact" icon={MapPin} sectionKey="contactInfo" />
                 <AnimatePresence>
                     {activeSection === "contact" && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
@@ -175,130 +279,360 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
             </div>
 
             {/* DOCUMENTS */}
-            <div>
-                <SectionHeader title="Documents (Passport / CDC / Visa)" sectionId="documents" icon={FileText} activeSection={activeSection} toggleSection={toggleSection} />
-                <AnimatePresence>
-                    {activeSection === "documents" && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                {data.documents.map((doc, index) => (
-                                    <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                        <h5 className="font-bold text-xs mb-2 text-orange-600">{doc.name || "New Document"}</h5>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                            <InputGroup label="Number" value={doc.number} onChange={(v: string) => handleArrayChange("documents", index, "number", v)} />
-                                            <InputGroup label="Issue Date" type="date" value={doc.issueDate} onChange={(v: string) => handleArrayChange("documents", index, "issueDate", v)} />
-                                            <InputGroup label="Expiry Date" type="date" value={doc.expiryDate} onChange={(v: string) => handleArrayChange("documents", index, "expiryDate", v)} />
-                                            <InputGroup label="Place of Issue" value={doc.placeOfIssue} onChange={(v: string) => handleArrayChange("documents", index, "placeOfIssue", v)} />
-                                            <InputGroup label="Remarks" value={doc.remarks} onChange={(v: string) => handleArrayChange("documents", index, "remarks", v)} />
+            {!hiddenSections.includes("documents") && (
+                <div>
+                    <CustomSectionHeader title="Documents" sectionId="documents" icon={FileText} sectionKey="documents" />
+                    <AnimatePresence>
+                        {activeSection === "documents" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    {data.documents.map((doc, index) => (
+                                        <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
+                                            <button onClick={() => removeArrayItem("documents", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                <InputGroup label="Document Name" value={doc.name} onChange={(v: string) => handleArrayChange("documents", index, "name", v)} />
+                                                <InputGroup label="Number" value={doc.number} onChange={(v: string) => handleArrayChange("documents", index, "number", v)} />
+                                                <InputGroup label="Issue Date" type="date" value={doc.issueDate} onChange={(v: string) => handleArrayChange("documents", index, "issueDate", v)} />
+                                                <InputGroup label="Expiry Date" type="date" value={doc.expiryDate} onChange={(v: string) => handleArrayChange("documents", index, "expiryDate", v)} />
+                                                <InputGroup label="Place of Issue" value={doc.placeOfIssue} onChange={(v: string) => handleArrayChange("documents", index, "placeOfIssue", v)} />
+                                                <InputGroup label="Remarks" value={doc.remarks} onChange={(v: string) => handleArrayChange("documents", index, "remarks", v)} />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                <button onClick={() => addArrayItem("documents")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add Document</button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                                    ))}
+                                    <button onClick={() => addArrayItem("documents")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add Document</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
 
             {/* COCS */}
-            <div>
-                <SectionHeader title="Certificates of Competency" sectionId="cocs" icon={Award} activeSection={activeSection} toggleSection={toggleSection} />
-                <AnimatePresence>
-                    {activeSection === "cocs" && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                {data.cocs.map((coc, index) => (
-                                    <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
-                                        <button onClick={() => removeArrayItem("cocs", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                                            <InputGroup label="Grade" value={coc.grade} onChange={(v: string) => handleArrayChange("cocs", index, "grade", v)} />
-                                            <InputGroup label="Issue Date" type="date" value={coc.issueDate} onChange={(v: string) => handleArrayChange("cocs", index, "issueDate", v)} />
-                                            <InputGroup label="Expiry Date" type="date" value={coc.expiryDate} onChange={(v: string) => handleArrayChange("cocs", index, "expiryDate", v)} />
-                                            <InputGroup label="Number" value={coc.number} onChange={(v: string) => handleArrayChange("cocs", index, "number", v)} />
-                                            <InputGroup label="Issued By" value={coc.issuedBy} onChange={(v: string) => handleArrayChange("cocs", index, "issuedBy", v)} />
+            {!hiddenSections.includes("cocs") && (
+                <div>
+                    <CustomSectionHeader title="Certificates of Competency" sectionId="cocs" icon={Award} sectionKey="cocs" />
+                    <AnimatePresence>
+                        {activeSection === "cocs" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    {data.cocs.map((coc, index) => (
+                                        <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
+                                            <button onClick={() => removeArrayItem("cocs", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                <InputGroup label="Name" value={coc.name} onChange={(v: string) => handleArrayChange("cocs", index, "name", v)} />
+                                                <InputGroup label="Grade" value={coc.grade} onChange={(v: string) => handleArrayChange("cocs", index, "grade", v)} />
+                                                <InputGroup label="Issue Date" type="date" value={coc.issueDate} onChange={(v: string) => handleArrayChange("cocs", index, "issueDate", v)} />
+                                                <InputGroup label="Expiry Date" type="date" value={coc.expiryDate} onChange={(v: string) => handleArrayChange("cocs", index, "expiryDate", v)} />
+                                                <InputGroup label="Number" value={coc.number} onChange={(v: string) => handleArrayChange("cocs", index, "number", v)} />
+                                                <InputGroup label="Issued By" value={coc.issuedBy} onChange={(v: string) => handleArrayChange("cocs", index, "issuedBy", v)} />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                <button onClick={() => addArrayItem("cocs")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add CoC</button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                                    ))}
+                                    <button onClick={() => addArrayItem("cocs")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add CoC</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
 
             {/* EDUCATION */}
-            <div>
-                <SectionHeader title="Pre-Sea Training / Education" sectionId="education" icon={BookOpen} activeSection={activeSection} toggleSection={toggleSection} />
-                <AnimatePresence>
-                    {activeSection === "education" && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <InputGroup label="Institute Name" value={data.education.institute} onChange={(v: string) => handleEducationChange("institute", v)} />
-                                    <InputGroup label="Certificate / Degree" value={data.education.degree} onChange={(v: string) => handleEducationChange("degree", v)} />
-                                    <InputGroup label="From" type="date" value={data.education.from} onChange={(v: string) => handleEducationChange("from", v)} />
-                                    <InputGroup label="To" type="date" value={data.education.to} onChange={(v: string) => handleEducationChange("to", v)} />
-                                    <InputGroup label="Grade / Percentage" value={data.education.grade} onChange={(v: string) => handleEducationChange("grade", v)} />
-                                    <InputGroup label="Year Passed" value={data.education.yearPassed} onChange={(v: string) => handleEducationChange("yearPassed", v)} />
+            {!hiddenSections.includes("education") && (
+                <div>
+                    <CustomSectionHeader title="Pre-Sea Training / Education" sectionId="education" icon={BookOpen} sectionKey="education" />
+                    <AnimatePresence>
+                        {activeSection === "education" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <InputGroup label="Institute Name" value={data.education.institute} onChange={(v: string) => handleEducationChange("institute", v)} />
+                                        <InputGroup label="Certificate / Degree" value={data.education.degree} onChange={(v: string) => handleEducationChange("degree", v)} />
+                                        <InputGroup label="From" type="date" value={data.education.from} onChange={(v: string) => handleEducationChange("from", v)} />
+                                        <InputGroup label="To" type="date" value={data.education.to} onChange={(v: string) => handleEducationChange("to", v)} />
+                                        <InputGroup label="Grade / Percentage" value={data.education.grade} onChange={(v: string) => handleEducationChange("grade", v)} />
+                                        <InputGroup label="Year Passed" value={data.education.yearPassed} onChange={(v: string) => handleEducationChange("yearPassed", v)} />
+                                    </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
 
             {/* STCW */}
-            <div>
-                <SectionHeader title="STCW Courses" sectionId="stcw" icon={Award} activeSection={activeSection} toggleSection={toggleSection} />
-                <AnimatePresence>
-                    {activeSection === "stcw" && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                {data.stcwCourses.map((course, index) => (
-                                    <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
-                                        <button onClick={() => removeArrayItem("stcwCourses", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                            <InputGroup className="col-span-2 md:col-span-1" label="Course Name" value={course.course} onChange={(v: string) => handleArrayChange("stcwCourses", index, "course", v)} />
-                                            <InputGroup label="Place" value={course.place} onChange={(v: string) => handleArrayChange("stcwCourses", index, "place", v)} />
-                                            <InputGroup label="Issued By" value={course.issuedBy} onChange={(v: string) => handleArrayChange("stcwCourses", index, "issuedBy", v)} />
-                                            <InputGroup label="Issue Date" type="date" value={course.issueDate} onChange={(v: string) => handleArrayChange("stcwCourses", index, "issueDate", v)} />
-                                            <InputGroup label="Expiry Date" type="date" value={course.expiryDate} onChange={(v: string) => handleArrayChange("stcwCourses", index, "expiryDate", v)} />
-                                            <InputGroup label="Certif No" value={course.refNo} onChange={(v: string) => handleArrayChange("stcwCourses", index, "refNo", v)} />
+            {!hiddenSections.includes("stcw") && (
+                <div>
+                    <CustomSectionHeader title="STCW Courses" sectionId="stcw" icon={Award} sectionKey="stcwCourses" />
+                    <AnimatePresence>
+                        {activeSection === "stcw" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    {data.stcwCourses.map((course, index) => (
+                                        <div key={index} className="p-3 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
+                                            <button onClick={() => removeArrayItem("stcwCourses", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                <InputGroup className="col-span-2 md:col-span-1" label="Course Name" value={course.course} onChange={(v: string) => handleArrayChange("stcwCourses", index, "course", v)} />
+                                                <InputGroup label="Place" value={course.place} onChange={(v: string) => handleArrayChange("stcwCourses", index, "place", v)} />
+                                                <InputGroup label="Issued By" value={course.issuedBy} onChange={(v: string) => handleArrayChange("stcwCourses", index, "issuedBy", v)} />
+                                                <InputGroup label="Issue Date" type="date" value={course.issueDate} onChange={(v: string) => handleArrayChange("stcwCourses", index, "issueDate", v)} />
+                                                <InputGroup label="Expiry Date" type="date" value={course.expiryDate} onChange={(v: string) => handleArrayChange("stcwCourses", index, "expiryDate", v)} />
+                                                <InputGroup label="Certif No" value={course.refNo} onChange={(v: string) => handleArrayChange("stcwCourses", index, "refNo", v)} />
+                                            </div>
                                         </div>
+                                    ))}
+                                    <button onClick={() => addArrayItem("stcwCourses")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add STCW Course</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* EDUCATIONAL QUALIFICATION */}
+            {!hiddenSections.includes("eduQual") && (
+                <div>
+                    <CustomSectionHeader title="Educational Qualification" sectionId="eduQual" icon={BookOpen} sectionKey="educationalQualification" />
+                    <AnimatePresence>
+                        {activeSection === "eduQual" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <InputGroup label="Degree / Qualification" value={data.educationalQualification?.degree} onChange={(v: string) => handleChange("educationalQualification", "degree", v)} className="col-span-2" />
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <InputGroup label="S.S.C (10th) Marks" value={data.educationalQualification?.sscMarks} onChange={(v: string) => handleChange("educationalQualification", "sscMarks", v)} />
+                                        <InputGroup label="H.S.C (12th) Marks" value={data.educationalQualification?.hscMarks} onChange={(v: string) => handleChange("educationalQualification", "hscMarks", v)} />
+                                        <InputGroup label="H.S.C (PCM) Marks" value={data.educationalQualification?.hscPcmMarks} onChange={(v: string) => handleChange("educationalQualification", "hscPcmMarks", v)} />
                                     </div>
-                                ))}
-                                <button onClick={() => addArrayItem("stcwCourses")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add STCW Course</button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* NEXT OF KIN */}
+            {!hiddenSections.includes("nextOfKin") && (
+                <div>
+                    <CustomSectionHeader title="Next of Kin" sectionId="nextOfKin" icon={User} sectionKey="nextOfKin" />
+                    <AnimatePresence>
+                        {activeSection === "nextOfKin" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <InputGroup label="Name" value={data.nextOfKin?.name} onChange={(v: string) => handleChange("nextOfKin", "name", v)} />
+                                        <InputGroup label="Relationship" value={data.nextOfKin?.relationship} onChange={(v: string) => handleChange("nextOfKin", "relationship", v)} />
+                                    </div>
+                                    <InputGroup label="Address" value={data.nextOfKin?.address} onChange={(v: string) => handleChange("nextOfKin", "address", v)} />
+                                    <InputGroup label="Contact No." value={data.nextOfKin?.contactNo} onChange={(v: string) => handleChange("nextOfKin", "contactNo", v)} />
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* PHYSICAL DESCRIPTION */}
+            {!hiddenSections.includes("physical") && (
+                <div>
+                    <CustomSectionHeader title="Physical Description" sectionId="physical" icon={User} sectionKey="physicalDescription" />
+                    <AnimatePresence>
+                        {activeSection === "physical" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        <InputGroup label="Hair Colour" value={data.physicalDescription?.hairColor} onChange={(v: string) => handleChange("physicalDescription", "hairColor", v)} />
+                                        <InputGroup label="Eye Colour" value={data.physicalDescription?.eyeColor} onChange={(v: string) => handleChange("physicalDescription", "eyeColor", v)} />
+                                        <InputGroup label="Height" value={data.physicalDescription?.height} onChange={(v: string) => handleChange("physicalDescription", "height", v)} />
+                                        <InputGroup label="Weight" value={data.physicalDescription?.weight} onChange={(v: string) => handleChange("physicalDescription", "weight", v)} />
+                                        <InputGroup label="Boiler Suit Size" value={data.physicalDescription?.boilerSuitSize} onChange={(v: string) => handleChange("physicalDescription", "boilerSuitSize", v)} />
+                                        <InputGroup label="Safety Shoe Size" value={data.physicalDescription?.shoeSize} onChange={(v: string) => handleChange("physicalDescription", "shoeSize", v)} />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
 
             {/* SEA SERVICE */}
+            {!hiddenSections.includes("sea") && (
+                <div>
+                    <CustomSectionHeader title="Sea Service Record" sectionId="sea" icon={Anchor} sectionKey="seaService" />
+                    <AnimatePresence>
+                        {activeSection === "sea" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    {data.seaService.map((item, index) => (
+                                        <div key={index} className="p-4 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
+                                            <button onClick={() => removeArrayItem("seaService", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                            <h4 className="text-xs font-bold uppercase text-zinc-500 mb-3">Vessel {index + 1}</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <InputGroup label="Vessel Name" value={item.vesselName} onChange={(v: string) => handleArrayChange("seaService", index, "vesselName", v)} />
+                                                <InputGroup label="Flag" value={item.flag} onChange={(v: string) => handleArrayChange("seaService", index, "flag", v)} />
+                                                <InputGroup label="Type" value={item.type} onChange={(v: string) => handleArrayChange("seaService", index, "type", v)} />
+                                                <InputGroup label="GRT" value={item.grt} onChange={(v: string) => handleArrayChange("seaService", index, "grt", v)} />
+                                                <InputGroup label="Company" value={item.company} onChange={(v: string) => handleArrayChange("seaService", index, "company", v)} />
+                                                <InputGroup label="Rank" value={item.rank} onChange={(v: string) => handleArrayChange("seaService", index, "rank", v)} />
+                                                <InputGroup label="Sign On" type="date" value={item.signOn} onChange={(v: string) => handleArrayChange("seaService", index, "signOn", v)} />
+                                                <InputGroup label="Sign Off" type="date" value={item.signOff} onChange={(v: string) => handleArrayChange("seaService", index, "signOff", v)} />
+                                                <InputGroup label="Total Dur." value={item.totalDuration} onChange={(v: string) => handleArrayChange("seaService", index, "totalDuration", v)} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => addArrayItem("seaService")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add Vessel</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* STRENGTHS */}
+            {!hiddenSections.includes("strengths") && (
+                <div>
+                    <CustomSectionHeader title="Strengths" sectionId="strengths" icon={Award} sectionKey="strengths" />
+                    <AnimatePresence>
+                        {activeSection === "strengths" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">Strengths</label>
+                                        <textarea
+                                            value={data.strengths || ""}
+                                            onChange={(e) => onUpdate({ ...data, strengths: e.target.value })}
+                                            rows={4}
+                                            className="w-full p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black text-xs outline-none transition-all focus:ring-1 focus:ring-orange-500 resize-none"
+                                            placeholder="Enter your key strengths..."
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* MISCELLANEOUS REMARKS */}
+            {!hiddenSections.includes("miscRemarks") && (
+                <div>
+                    <CustomSectionHeader title="Miscellaneous Remarks" sectionId="miscRemarks" icon={FileText} sectionKey="miscellaneousRemarks" />
+                    <AnimatePresence>
+                        {activeSection === "miscRemarks" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">Miscellaneous Remarks</label>
+                                        <textarea
+                                            value={data.miscellaneousRemarks || ""}
+                                            onChange={(e) => onUpdate({ ...data, miscellaneousRemarks: e.target.value })}
+                                            rows={4}
+                                            className="w-full p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black text-xs outline-none transition-all focus:ring-1 focus:ring-orange-500 resize-none"
+                                            placeholder="Enter any additional remarks..."
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* RESTORE SECTIONS */}
+            {hiddenSections.length > 0 && (
+                <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl">
+                    <h5 className="text-xs font-bold uppercase text-zinc-500 mb-3">Add Section</h5>
+                    <div className="flex flex-wrap gap-2">
+                        {hiddenSections.includes("documents") && (
+                            <button onClick={() => showSection("documents")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <FileText size={14} /> Documents
+                            </button>
+                        )}
+                        {hiddenSections.includes("cocs") && (
+                            <button onClick={() => showSection("cocs")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <Award size={14} /> Certificates
+                            </button>
+                        )}
+                        {hiddenSections.includes("education") && (
+                            <button onClick={() => showSection("education")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <BookOpen size={14} /> Education
+                            </button>
+                        )}
+                        {hiddenSections.includes("stcw") && (
+                            <button onClick={() => showSection("stcw")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <Award size={14} /> STCW Courses
+                            </button>
+                        )}
+                        {hiddenSections.includes("sea") && (
+                            <button onClick={() => showSection("sea")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <Anchor size={14} /> Sea Service
+                            </button>
+                        )}
+                        {hiddenSections.includes("eduQual") && (
+                            <button onClick={() => showSection("eduQual")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <BookOpen size={14} /> Educational Qualification
+                            </button>
+                        )}
+                        {hiddenSections.includes("nextOfKin") && (
+                            <button onClick={() => showSection("nextOfKin")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <User size={14} /> Next of Kin
+                            </button>
+                        )}
+                        {hiddenSections.includes("physical") && (
+                            <button onClick={() => showSection("physical")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <User size={14} /> Physical Description
+                            </button>
+                        )}
+                        {hiddenSections.includes("strengths") && (
+                            <button onClick={() => showSection("strengths")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <Award size={14} /> Strengths
+                            </button>
+                        )}
+                        {hiddenSections.includes("miscRemarks") && (
+                            <button onClick={() => showSection("miscRemarks")} className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <FileText size={14} /> Miscellaneous Remarks
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* DECLARATION - Compulsory, not deletable */}
             <div>
-                <SectionHeader title="Sea Service Record" sectionId="sea" icon={Anchor} activeSection={activeSection} toggleSection={toggleSection} />
+                <div
+                    className={cn(
+                        "flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all mb-2",
+                        activeSection === "declaration"
+                            ? "bg-orange-500/10 border border-orange-500/30"
+                            : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-orange-500/50"
+                    )}
+                    onClick={() => setActiveSection(activeSection === "declaration" ? null : "declaration")}
+                >
+                    <FileText size={18} className={activeSection === "declaration" ? "text-orange-500" : "text-zinc-400"} />
+                    <span className={cn("font-semibold text-sm uppercase tracking-wide", activeSection === "declaration" ? "text-orange-500" : "text-zinc-600 dark:text-zinc-400")}>
+                        Declaration
+                    </span>
+                    <span className="ml-auto text-[10px] uppercase font-bold text-zinc-400">Required</span>
+                </div>
                 <AnimatePresence>
-                    {activeSection === "sea" && (
+                    {activeSection === "declaration" && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                             <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4 mb-4">
-                                {data.seaService.map((item, index) => (
-                                    <div key={index} className="p-4 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
-                                        <button onClick={() => removeArrayItem("seaService", index)} className="absolute top-2 right-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
-                                        <h4 className="text-xs font-bold uppercase text-zinc-500 mb-3">Vessel {index + 1}</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <InputGroup label="Vessel Name" value={item.vesselName} onChange={(v: string) => handleArrayChange("seaService", index, "vesselName", v)} />
-                                            <InputGroup label="Flag" value={item.flag} onChange={(v: string) => handleArrayChange("seaService", index, "flag", v)} />
-                                            <InputGroup label="Type" value={item.type} onChange={(v: string) => handleArrayChange("seaService", index, "type", v)} />
-                                            <InputGroup label="GRT" value={item.grt} onChange={(v: string) => handleArrayChange("seaService", index, "grt", v)} />
-                                            <InputGroup label="Company" value={item.company} onChange={(v: string) => handleArrayChange("seaService", index, "company", v)} />
-                                            <InputGroup label="Rank" value={item.rank} onChange={(v: string) => handleArrayChange("seaService", index, "rank", v)} />
-                                            <InputGroup label="Sign On" type="date" value={item.signOn} onChange={(v: string) => handleArrayChange("seaService", index, "signOn", v)} />
-                                            <InputGroup label="Sign Off" type="date" value={item.signOff} onChange={(v: string) => handleArrayChange("seaService", index, "signOff", v)} />
-                                            <InputGroup label="Total Dur." value={item.totalDuration} onChange={(v: string) => handleArrayChange("seaService", index, "totalDuration", v)} />
-                                        </div>
-                                    </div>
-                                ))}
-                                <button onClick={() => addArrayItem("seaService")} className="w-full py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 flex items-center justify-center gap-2"><Plus size={14} /> Add Vessel</button>
+                                <p className="text-sm text-zinc-700 dark:text-zinc-300 italic">
+                                    I hereby declare that the information furnished above is true to the best of my knowledge.
+                                </p>
+                                <div className="flex gap-4 items-end">
+                                    <InputGroup
+                                        label="Date"
+                                        type="date"
+                                        value={data.declarationDate || ""}
+                                        onChange={(v: string) => onUpdate({ ...data, declarationDate: v })}
+                                        className="flex-1"
+                                    />
+                                    <ImageUpload
+                                        label="Signature"
+                                        value={data.signatureImage}
+                                        onChange={(base64) => onUpdate({ ...data, signatureImage: base64 })}
+                                    />
+                                </div>
                             </div>
                         </motion.div>
                     )}
