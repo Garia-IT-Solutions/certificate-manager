@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SidebarProvider } from "@/components/ui/sidebar"; // <-- 1. Added the import
 
 // Initialize fonts
 const inter = Inter({ 
@@ -33,8 +34,6 @@ export default function RootLayout({
           font-sans 
           antialiased 
           min-h-screen 
-          
-          /* --- BASE BACKGROUND COLORS --- */
           bg-zinc-50 
           dark:bg-black
 
@@ -55,7 +54,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          {/* <-- 2. Wrapped the entire application in the SidebarProvider */}
+          <SidebarProvider>
+            {children}
+          </SidebarProvider>
         </ThemeProvider>
       </body>
     </html>

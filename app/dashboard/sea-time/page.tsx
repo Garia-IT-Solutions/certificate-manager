@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { api } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,14 +13,12 @@ import { TiltCard } from "@/components/TiltCard";
 import { cn } from "@/lib/utils";
 import { Toaster, toast } from "sonner";
 
-// --- MOCK USER PROFILE ---
 const USER_PROFILE = {
    name: "Aditya R.",
    department: "ENGINE" as "ENGINE" | "DECK",
    id: "IND-8842"
 };
 
-// --- DATA LISTS ---
 const VESSEL_TYPES = [
    "Oil Tanker", "Gas Tanker", "Product Tanker", "Oil/Chem Tanker", "Chemical Tanker", "Bitumen Tanker",
    "Container Ship", "Bulk Carrier", "General Cargo", "Cruise Ship",
@@ -38,7 +36,6 @@ const RANKS = {
    ]
 };
 
-// Common Maritime Flags
 const FLAGS = [
     "Panama", "Liberia", "Marshall Islands", "Singapore", "Malta", "Bahamas", "China", "Greece", "Japan", 
     "United States", "Cyprus", "Norway", "United Kingdom", "Indonesia", "Germany", "South Korea", 
@@ -46,7 +43,6 @@ const FLAGS = [
     "Malaysia", "France", "Spain", "Belgium", "Sweden", "Brazil", "Canada", "Australia", "Thailand"
 ].sort();
 
-// --- TYPES ---
 interface SeaTimeEntry {
    id: number;
    imo: string;
@@ -67,7 +63,6 @@ interface SeaTimeEntry {
    duration: { months: number; days: number };
 }
 
-// --- HELPER ---
 const calculateDuration = (start: string, end: string) => {
    if (!start || !end) return { months: 0, days: 0 };
    const startDate = new Date(start);
@@ -78,7 +73,6 @@ const calculateDuration = (start: string, end: string) => {
    return { months: Math.floor(diffDays / 30), days: diffDays % 30 };
 };
 
-// --- COMPONENT: PREMIUM SEARCHABLE DROPDOWN ---
 function SearchableDropdown({ 
     options, 
     value, 
@@ -98,17 +92,14 @@ function SearchableDropdown({
     const [searchTerm, setSearchTerm] = useState("");
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    // Filter options based on search
     const filteredOptions = useMemo(() => {
         return options.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [options, searchTerm]);
 
-    // Handle clicking outside to close
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
-                // If custom values aren't allowed, revert search to current value
                 if (!allowCustom && !options.includes(searchTerm) && searchTerm !== "") {
                     setSearchTerm(value); 
                 }
@@ -118,7 +109,6 @@ function SearchableDropdown({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef, allowCustom, options, searchTerm, value]);
 
-    // Sync internal search state with prop value changes
     useEffect(() => {
         setSearchTerm(value);
     }, [value]);
@@ -189,7 +179,6 @@ function SearchableDropdown({
     );
 }
 
-// --- COMPONENT: DELETE CONFIRMATION ---
 function DeleteConfirmModal({ isOpen, onClose, onConfirm }: any) {
    if (!isOpen) return null;
    return (
@@ -211,7 +200,6 @@ function DeleteConfirmModal({ isOpen, onClose, onConfirm }: any) {
    );
 }
 
-// --- COMPONENT: RECORD MODAL ---
 function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
    const [formData, setFormData] = useState({
       imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "",
@@ -255,7 +243,6 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
 
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* LEFT COLUMN */}
                   <div className="space-y-4">
                      <div className="space-y-3">
                         <div>
@@ -288,7 +275,6 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
                            </div>
                            <div>
                                 <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Flag</label>
-                                {/* PREMIUM FLAG CHOOSER */}
                                 <SearchableDropdown 
                                     options={FLAGS} 
                                     value={formData.flag} 
@@ -312,7 +298,6 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
                      </div>
                   </div>
 
-                  {/* RIGHT COLUMN */}
                   <div className="space-y-4">
                      <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 h-full flex flex-col">
                         <div>
@@ -363,7 +348,6 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
    );
 }
 
-// --- MAIN PAGE (Unchanged logic, just ensure imports match) ---
 export default function SeaTimePage() {
    const [entries, setEntries] = useState<SeaTimeEntry[]>([]);
 
@@ -395,10 +379,10 @@ export default function SeaTimePage() {
          }));
          setEntries(mapped);
       } catch (error) {
-         console.error("Failed to load sea time logs", error);
          toast.error("Failed to load sea time logs");
       }
    };
+   
    const [searchTerm, setSearchTerm] = useState("");
    const [isModalOpen, setIsModalOpen] = useState(false);
    const [editingId, setEditingId] = useState<number | null>(null);
@@ -434,7 +418,6 @@ export default function SeaTimePage() {
 
    const handleSave = async (data: any) => {
       try {
-         const duration = calculateDuration(data.signOn, data.signOff);
          const entryToSave = {
             imo: data.imo,
             offNo: data.offNo,
@@ -450,11 +433,10 @@ export default function SeaTimePage() {
             dwt: Number(data.dwt),
             signOn: data.signOn,
             signOff: data.signOff,
-            uploadDate: new Date().toISOString().split("T")[0] // Set current date for upload
+            uploadDate: new Date().toISOString().split("T")[0] 
          };
 
          if (editingId) {
-            // Update logic here if backend supports it
             toast.error("Update function not enabled in backend yet.");
          } else {
             await api.createSeaTimeLog(entryToSave);
@@ -462,7 +444,6 @@ export default function SeaTimePage() {
          }
          loadEntries();
       } catch (error) {
-         console.error("Failed to save sea time log", error);
          toast.error("Failed to save sea time log");
       } finally {
          setIsModalOpen(false);
@@ -477,7 +458,6 @@ export default function SeaTimePage() {
             toast.error("Record deleted permanently");
             loadEntries();
          } catch (error) {
-            console.error("Failed to delete sea time log", error);
             toast.error("Failed to delete sea time log");
          } finally {
             setDeleteConfirmId(null);
@@ -499,24 +479,21 @@ export default function SeaTimePage() {
    const uniqueCompanies = Array.from(new Set(entries.map(r => r.company)));
 
    return (
-      <div className="w-full p-6 md:p-8 pb-40 bg-transparent transition-colors duration-500">
+      <div className="min-h-screen w-full bg-transparent pb-32 transition-colors duration-500">
          <Toaster position="top-center" theme="dark" richColors />
-         <div className="mx-auto max-w-[1400px]">
-            {/* HEADER */}
-            <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-               <div>
-                  <h1 className="text-3xl font-light tracking-tighter text-zinc-900 dark:text-white">Service<span className="font-bold text-[#FF3300]">Log</span></h1>
-                  <p className="font-mono text-[10px] text-zinc-400 uppercase mt-1">Official Sea Service Record</p>
+         <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
+               <div className="min-w-0 flex-1">
+                  <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">Service<span className="font-bold text-[#FF3300]">Log</span></h1>
+                  <p className="font-mono text-[10px] text-zinc-400 uppercase mt-1 truncate">Official Sea Service Record</p>
                </div>
-               <div className="flex items-center gap-3">
+               <div className="flex items-center gap-3 shrink-0">
                   <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-2 rounded-lg font-mono text-[10px] font-bold uppercase hover:opacity-90 shadow-lg"><Plus size={12} /><span>Add Record</span></button>
                   <ThemeToggle />
                </div>
             </header>
 
-            {/* --- STATS GRID --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-               {/* SAME STAT CARDS AS BEFORE */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
                <TiltCard className="h-[110px] relative overflow-hidden group border-none bg-white dark:bg-[#09090b]">
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#FF3300] shadow-[0_0_15px_#FF3300] z-20" />
                   <div className="p-4 h-full flex flex-col justify-between relative z-10">
@@ -547,66 +524,86 @@ export default function SeaTimePage() {
                </TiltCard>
             </div>
 
-            {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row gap-3 mb-4">
-               <div className="relative flex-1 group"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={12} /><input type="text" placeholder="Search by vessel or company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 pl-9 pr-3 text-[10px] outline-none focus:border-[#FF3300]" /></div>
-               <div className="relative">
-                  <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center gap-2 transition-colors"><Filter size={12} /> <span className="text-[9px] font-bold uppercase">Filter</span> {(filters.rank || filters.type || filters.company) && <span className="w-1.5 h-1.5 rounded-full bg-[#FF3300]" />}</button>
-                  <AnimatePresence>{isFilterOpen && (<motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 p-3 space-y-3">
-                     <div><label className="text-[9px] font-bold text-zinc-400 uppercase mb-1.5 block">By Rank</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-[10px] outline-none" value={filters.rank} onChange={(e) => setFilters({ ...filters, rank: e.target.value })}><option value="">All Ranks</option>{uniqueRanks.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                     <div><label className="text-[9px] font-bold text-zinc-400 uppercase mb-1.5 block">By Type</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-[10px] outline-none" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">All Types</option>{uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                     <div><label className="text-[9px] font-bold text-zinc-400 uppercase mb-1.5 block">By Company</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-[10px] outline-none" value={filters.company} onChange={(e) => setFilters({ ...filters, company: e.target.value })}><option value="">All Companies</option>{uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                     <button onClick={() => { setFilters({ rank: '', type: '', company: '' }); setIsFilterOpen(false); }} className="w-full py-1.5 text-[10px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">Clear Filters</button>
-                  </motion.div>)}</AnimatePresence>
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+               <div className="relative flex-1 group min-w-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={12} />
+                  <input type="text" placeholder="Search by vessel or company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2.5 pl-9 pr-3 text-xs outline-none focus:border-[#FF3300]" />
                </div>
-               <button onClick={handleExport} className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center gap-2"><Download size={12} /><span className="text-[9px] font-bold uppercase">Export</span></button>
+               <div className="relative shrink-0 flex gap-2 sm:gap-3">
+                  <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
+                     <Filter size={12} /> <span className="text-[10px] font-bold uppercase">Filter</span> {(filters.rank || filters.type || filters.company) && <span className="w-1.5 h-1.5 rounded-full bg-[#FF3300]" />}
+                  </button>
+                  <AnimatePresence>
+                     {isFilterOpen && (
+                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 p-4 space-y-4">
+                           <div><label className="text-[10px] font-bold text-zinc-400 uppercase mb-2 block">By Rank</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs outline-none" value={filters.rank} onChange={(e) => setFilters({ ...filters, rank: e.target.value })}><option value="">All Ranks</option>{uniqueRanks.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                           <div><label className="text-[10px] font-bold text-zinc-400 uppercase mb-2 block">By Type</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs outline-none" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">All Types</option>{uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                           <div><label className="text-[10px] font-bold text-zinc-400 uppercase mb-2 block">By Company</label><select className="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs outline-none" value={filters.company} onChange={(e) => setFilters({ ...filters, company: e.target.value })}><option value="">All Companies</option>{uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                           <button onClick={() => { setFilters({ rank: '', type: '', company: '' }); setIsFilterOpen(false); }} className="w-full py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Clear Filters</button>
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
+                  <button onClick={handleExport} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
+                     <Download size={12} /><span className="text-[10px] font-bold uppercase">Export</span>
+                  </button>
+               </div>
             </div>
 
-            {/* LIST */}
-            <div className="space-y-2">
+            <div className="space-y-3 w-full">
                <AnimatePresence>
                   {filteredRecords.map((record) => (
-                     <motion.div key={record.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-12 gap-0 bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all group overflow-hidden">
-                        {/* RECORD CONTENT SAME AS BEFORE... */}
-                        <div className="md:col-span-5 p-3 flex items-center gap-3 border-b md:border-b-0 md:border-r border-zinc-100 dark:border-zinc-800 relative">
+                     <motion.div key={record.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col md:flex-row md:items-stretch bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all group overflow-hidden w-full">
+                        <div className="flex-1 p-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 border-b md:border-b-0 md:border-r border-zinc-100 dark:border-zinc-800 relative w-full">
                            <div className={cn("absolute left-0 top-0 bottom-0 w-1", record.dept === "ENGINE" ? "bg-orange-500" : "bg-blue-500")} />
-                           <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900 text-zinc-400 group-hover:text-[#FF3300]"><Ship size={16} /></div>
-                           <div>
-                              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 leading-tight">{record.vesselName}</h3>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                 <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1"><Building2 size={8} /> {record.company}</span>
+                           
+                           <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-zinc-400 group-hover:text-[#FF3300] shrink-0 transition-colors">
+                                 <Ship size={20} />
                               </div>
-                              <div className="mt-1 flex gap-1.5">
-                                 <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 uppercase">{record.type}</span>
-                                 <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center gap-1"><Weight size={8} /> {record.dwt?.toLocaleString()} DWT</span>
+                              <div className="min-w-0 flex-1">
+                                 <h3 className="font-bold text-base text-zinc-900 dark:text-zinc-100 leading-tight truncate">{record.vesselName}</h3>
+                                 <div className="flex items-center gap-2 mt-1 truncate">
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1 shrink-0"><Building2 size={10} /> {record.company}</span>
+                                 </div>
+                                 <div className="mt-2 flex flex-wrap gap-2">
+                                    <span className="px-2 py-1 rounded-md text-[9px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 uppercase">{record.type}</span>
+                                    <span className="px-2 py-1 rounded-md text-[9px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center gap-1"><Weight size={10} /> {record.dwt?.toLocaleString()} DWT</span>
+                                 </div>
+                              </div>
+                           </div>
+                           
+                           <div className="flex flex-col justify-center min-w-[140px] shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800/50">
+                              <div className="mb-2">
+                                 <span className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase border mb-1 inline-block", record.dept === "ENGINE" ? "text-orange-500 border-orange-500/30" : "text-blue-500 border-blue-500/30")}>
+                                    {record.dept} DEPT
+                                 </span>
+                                 <h4 className="text-sm font-bold text-zinc-900 dark:text-white leading-tight truncate">{record.rank}</h4>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 shrink-0">
+                                 <Calendar size={10} className="shrink-0" />
+                                 <span>{record.signOn}</span>
+                                 <span className="text-zinc-300 shrink-0">→</span>
+                                 <span>{record.signOff}</span>
                               </div>
                            </div>
                         </div>
-                        <div className="md:col-span-4 p-3 flex flex-col justify-center border-b md:border-b-0 md:border-r border-zinc-100 dark:border-zinc-800">
-                           <div className="mb-1">
-                              <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border mb-0.5 inline-block", record.dept === "ENGINE" ? "text-orange-500 border-orange-500/30" : "text-blue-500 border-blue-500/30")}>
-                                 {record.dept} DEPT
-                              </span>
-                              <h4 className="text-sm font-bold text-zinc-900 dark:text-white leading-tight">{record.rank}</h4>
-                           </div>
-                           <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-500">
-                              <Calendar size={9} />
-                              <span>{record.signOn}</span>
-                              <span className="text-zinc-300">→</span>
-                              <span>{record.signOff}</span>
+
+                        <div className="w-full md:w-48 p-4 flex flex-col justify-center bg-zinc-50/30 dark:bg-zinc-900/10 shrink-0">
+                           <p className="text-[9px] uppercase text-zinc-400 font-bold mb-1">Main Engine</p>
+                           <p className="text-xs font-bold text-zinc-900 dark:text-white truncate mb-2" title={record.mainEngine}>{record.mainEngine}</p>
+                           <div className="grid grid-cols-2 gap-2">
+                              <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k</span></div>
+                              <div><span className="text-[9px] text-zinc-500 block uppercase">Torque</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.torque / 1000).toFixed(1)}k</span></div>
                            </div>
                         </div>
-                        <div className="md:col-span-2 p-3 flex flex-col justify-center">
-                           <p className="text-[8px] uppercase text-zinc-400 font-bold mb-0.5">Main Engine</p>
-                           <p className="text-[9px] font-bold text-zinc-900 dark:text-white truncate mb-1" title={record.mainEngine}>{record.mainEngine}</p>
-                           <div className="grid grid-cols-2 gap-1">
-                              <div><span className="text-[8px] text-zinc-500 block uppercase">Power</span><span className="text-[9px] font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k</span></div>
-                              <div><span className="text-[8px] text-zinc-500 block uppercase">Torque</span><span className="text-[9px] font-mono font-bold text-emerald-500">{(record.torque / 1000).toFixed(1)}k</span></div>
-                           </div>
-                        </div>
-                        <div className="md:col-span-1 p-2 flex md:flex-col items-center justify-center gap-1 bg-zinc-50/50 dark:bg-zinc-900/30 border-l border-zinc-100 dark:border-zinc-800">
-                           <button onClick={() => { setEditingId(record.id); setIsModalOpen(true); }} className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" title="Edit"><Edit size={12} /></button>
-                           <button onClick={() => setDeleteConfirmId(record.id)} className="p-1.5 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Delete"><Trash2 size={12} /></button>
+
+                        <div className="flex flex-row md:flex-col items-center justify-end sm:justify-center gap-2 p-3 bg-zinc-50/50 dark:bg-zinc-900/30 border-t md:border-t-0 md:border-l border-zinc-100 dark:border-zinc-800 shrink-0">
+                           <button onClick={() => { setEditingId(record.id); setIsModalOpen(true); }} className="p-2 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2 md:gap-0" title="Edit">
+                              <Edit size={14} /> <span className="text-[10px] font-bold uppercase md:hidden text-zinc-500">Edit</span>
+                           </button>
+                           <button onClick={() => setDeleteConfirmId(record.id)} className="p-2 md:p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2 md:gap-0" title="Delete">
+                              <Trash2 size={14} /> <span className="text-[10px] font-bold uppercase md:hidden text-zinc-500 hover:text-red-500">Delete</span>
+                           </button>
                         </div>
                      </motion.div>
                   ))}
@@ -615,7 +612,7 @@ export default function SeaTimePage() {
 
             <AnimatePresence>{isModalOpen && <RecordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSave} initialData={editingId ? entries.find(r => r.id === editingId) : null} />}</AnimatePresence>
             <AnimatePresence>{deleteConfirmId && <DeleteConfirmModal isOpen={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)} onConfirm={confirmDelete} />}</AnimatePresence>
-         </div>
+         </main>
       </div>
    );
 }

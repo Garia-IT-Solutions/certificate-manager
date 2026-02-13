@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useMemo, useRef, useEffect } from "react";
 import { api } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,8 +35,6 @@ interface Certificate {
   fileUrl?: string;
   fileName?: string;
 }
-
-
 
 const INITIAL_DATA: Certificate[] = [];
 
@@ -105,7 +104,7 @@ function DeleteConfirmationDialog({
           </div>
           <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Delete Certificate?</h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">Are you sure you want to delete</p>
-          <p className="text-sm font-mono font-bold text-zinc-900 dark:text-white mb-8">{certificateName}</p>
+          <p className="text-sm font-mono font-bold text-zinc-900 dark:text-white mb-8 truncate px-2">{certificateName}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-500 mb-8">This action cannot be undone.</p>
         </div>
 
@@ -128,7 +127,6 @@ function DeleteConfirmationDialog({
   );
 }
 
-// Certificate type options for classification
 const CERTIFICATE_TYPES = [
   { value: "coc", label: "Certificate of Competency (CoC)", description: "Professional competency certificates" },
   { value: "stcw", label: "STCW Course", description: "Safety training & STCW courses" },
@@ -152,14 +150,12 @@ function UploadModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [step, setStep] = useState<"upload" | "classify">("upload");
 
-  // Classification form state
   const [certType, setCertType] = useState("coc");
   const [certName, setCertName] = useState("");
   const [issuedBy, setIssuedBy] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState("");
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSelectedFile(null);
@@ -206,7 +202,6 @@ function UploadModal({
       return;
     }
 
-    // Move to classification step
     setSelectedFile(file);
     setCertName(file.name.replace(/\.[^/.]+$/, ""));
     setStep("classify");
@@ -242,155 +237,150 @@ function UploadModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
-        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
           <div>
             <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
               {step === "upload" ? "Upload Certificate" : "Classify Certificate"}
             </h3>
             {step === "classify" && (
-              <p className="text-xs text-zinc-500 mt-1">Step 2 of 2: Add certificate details</p>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Step 2 of 2: Details</p>
             )}
           </div>
           <button
             onClick={onClose}
             disabled={isUploading}
-            className="disabled:opacity-50"
+            className="disabled:opacity-50 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
           >
-            <X size={20} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
+            <X size={18} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
           </button>
         </div>
 
-        {step === "upload" ? (
-          // STEP 1: File Upload
-          <div className="p-10">
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "border-2 border-dashed rounded-2xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all group",
-                isDragOver
-                  ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10"
-                  : "border-zinc-200 dark:border-zinc-800 hover:border-orange-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-              )}
-            >
-              <div className="h-12 w-12 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <UploadCloud size={24} className="text-zinc-400 group-hover:text-orange-500" />
-              </div>
-              <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Click to upload or drag files</p>
-              <p className="text-xs text-zinc-400 mt-1">PDF, JPG, PNG (Max {SYSTEM_CONFIG.upload.maxFileSizeMB}MB)</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-            />
-          </div>
-        ) : (
-          // STEP 2: Classification Form
-          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-            {/* Selected File Preview */}
-            <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl flex items-center gap-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <FileText size={16} className="text-orange-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{selectedFile?.name}</p>
-                <p className="text-[10px] text-zinc-400">{((selectedFile?.size || 0) / 1024).toFixed(1)} KB</p>
-              </div>
-              <button
-                onClick={() => setStep("upload")}
-                className="text-xs text-zinc-500 hover:text-orange-600"
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {step === "upload" ? (
+            <div className="p-8 sm:p-10">
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "border-2 border-dashed rounded-2xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all group",
+                  isDragOver
+                    ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10"
+                    : "border-zinc-200 dark:border-zinc-800 hover:border-orange-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                )}
               >
-                Change
-              </button>
-            </div>
-
-            {/* Certificate Type Selection */}
-            <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-2 block">Certificate Type *</label>
-              <div className="grid grid-cols-1 gap-2">
-                {CERTIFICATE_TYPES.map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setCertType(type.value)}
-                    className={cn(
-                      "p-3 rounded-xl border text-left transition-all",
-                      certType === type.value
-                        ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500"
-                        : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                    )}
-                  >
-                    <p className={cn(
-                      "text-sm font-bold",
-                      certType === type.value ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
-                    )}>
-                      {type.label}
-                    </p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{type.description}</p>
-                  </button>
-                ))}
+                <div className="h-12 w-12 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <UploadCloud size={24} className="text-zinc-400 group-hover:text-orange-500" />
+                </div>
+                <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Click to upload or drag files</p>
+                <p className="text-[10px] font-bold text-zinc-400 mt-1 uppercase tracking-wider">PDF, JPG, PNG (Max {SYSTEM_CONFIG.upload.maxFileSizeMB}MB)</p>
               </div>
-            </div>
-
-            {/* Certificate Name */}
-            <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Certificate Name *</label>
               <input
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
-                value={certName}
-                onChange={(e) => setCertName(e.target.value)}
-                placeholder="e.g., STCW Basic Safety Training"
+                ref={fileInputRef}
+                type="file"
+                onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
               />
             </div>
+          ) : (
+            <div className="p-6 space-y-5">
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-xl flex items-center gap-3">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <FileText size={16} className="text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{selectedFile?.name}</p>
+                  <p className="text-[10px] font-mono text-zinc-400">{((selectedFile?.size || 0) / 1024).toFixed(1)} KB</p>
+                </div>
+                <button
+                  onClick={() => setStep("upload")}
+                  className="text-[10px] font-bold uppercase text-zinc-500 hover:text-orange-600 transition-colors shrink-0"
+                >
+                  Change
+                </button>
+              </div>
 
-            {/* Issued By */}
-            <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issued By *</label>
-              <input
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
-                value={issuedBy}
-                onChange={(e) => setIssuedBy(e.target.value)}
-                placeholder="e.g., Maritime Authority"
-              />
-            </div>
-
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issue Date *</label>
+                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-2 block">Certificate Type *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {CERTIFICATE_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setCertType(type.value)}
+                      className={cn(
+                        "p-3 rounded-xl border text-left transition-all",
+                        certType === type.value
+                          ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500 shadow-sm"
+                          : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
+                      )}
+                    >
+                      <p className={cn(
+                        "text-xs font-bold",
+                        certType === type.value ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
+                      )}>
+                        {type.label}
+                      </p>
+                      <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight">{type.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Certificate Name *</label>
                 <input
-                  type="date"
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
-                  value={issueDate}
-                  onChange={(e) => setIssueDate(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors text-zinc-900 dark:text-zinc-100"
+                  value={certName}
+                  onChange={(e) => setCertName(e.target.value)}
+                  placeholder="e.g., STCW Basic Safety Training"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Expiry Date *</label>
+                <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issued By *</label>
                 <input
-                  type="date"
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors text-zinc-900 dark:text-zinc-100"
+                  value={issuedBy}
+                  onChange={(e) => setIssuedBy(e.target.value)}
+                  placeholder="e.g., Maritime Authority"
                 />
               </div>
-            </div>
-          </div>
-        )}
 
-        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issue Date *</label>
+                  <input
+                    type="date"
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
+                    value={issueDate}
+                    onChange={(e) => setIssueDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Expiry Date *</label>
+                  <input
+                    type="date"
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3 shrink-0 border-t border-zinc-100 dark:border-zinc-800/50">
           {step === "classify" && (
             <button
               onClick={() => setStep("upload")}
               disabled={isUploading}
-              className="px-4 py-2 text-xs font-bold uppercase text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
+              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50 transition-colors"
             >
               Back
             </button>
@@ -399,10 +389,10 @@ function UploadModal({
             onClick={step === "upload" ? onClose : handleSubmit}
             disabled={isUploading}
             className={cn(
-              "px-6 py-2 rounded-lg text-xs font-bold uppercase shadow-lg disabled:opacity-50",
+              "px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg disabled:opacity-50 transition-all",
               step === "upload"
-                ? "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                : "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-500/20"
+                ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700"
+                : "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-500/20 active:scale-95"
             )}
           >
             {isUploading ? "Uploading..." : step === "upload" ? "Close" : "Upload Certificate"}
@@ -436,33 +426,33 @@ function CertificateViewerModal({
         exit={{ opacity: 0, scale: 0.95 }}
         className="relative w-full h-full max-w-5xl max-h-[90vh] bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col"
       >
-        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/50">
-          <div>
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Certificate Preview</h3>
-            <p className="text-[10px] font-mono text-zinc-400 uppercase mt-0.5">{fileName}</p>
+        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/50 shrink-0">
+          <div className="min-w-0 pr-4">
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white truncate">Certificate Preview</h3>
+            <p className="text-[10px] font-mono text-zinc-400 uppercase mt-0.5 truncate">{fileName}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors"
+            className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors shrink-0"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+        <div className="flex-1 overflow-hidden bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center relative">
           {fileUrl ? (
             isPDF ? (
               <iframe src={fileUrl} className="w-full h-full border-none bg-white" title="PDF Preview" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center p-8">
-                <img src={fileUrl} alt={fileName} className="max-w-full max-h-full object-contain shadow-lg" />
+              <div className="w-full h-full flex items-center justify-center p-4 sm:p-8">
+                <img src={fileUrl} alt={fileName} className="max-w-full max-h-full object-contain shadow-lg rounded-md" />
               </div>
             )
           ) : (
             <div className="text-center p-10 opacity-50">
               <File size={48} className="mx-auto mb-4 text-zinc-400" />
               <p className="text-zinc-500 font-bold">Preview not available</p>
-              <p className="text-xs text-zinc-400 mt-2">This is a mock entry. Upload a real file to view it here.</p>
+              <p className="text-[10px] text-zinc-400 mt-2 uppercase tracking-widest font-bold">Upload a real file to view</p>
             </div>
           )}
         </div>
@@ -499,16 +489,12 @@ function EditCertificateModal({
     try {
       let updateData: any = { ...formData };
 
-      // Handle file upload if a new file is selected
       if (newFile) {
         const reader = new FileReader();
         reader.onload = async () => {
           const result = reader.result as string;
           const base64Content = result.includes(',') ? result.split(',')[1] : "";
           updateData.cert = base64Content;
-          // If replacing file, might want to auto-update name/type if not manually changed?
-          // For now, just send the content
-
           await onSave(initialData.id, updateData);
           onClose();
         };
@@ -520,7 +506,6 @@ function EditCertificateModal({
       onClose();
 
     } catch (error) {
-      console.error("Save failed", error);
       toast.error("Failed to update certificate");
     } finally {
       setIsSaving(false);
@@ -533,79 +518,79 @@ function EditCertificateModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
-        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
           <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Edit Certificate</h3>
-          <button onClick={onClose} disabled={isSaving}>
-            <X size={20} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
+          <button onClick={onClose} disabled={isSaving} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+            <X size={18} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
           <div>
-            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Certificate Name</label>
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Certificate Name</label>
             <input
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors text-zinc-900 dark:text-zinc-100"
               value={formData.certName}
               onChange={(e) => setFormData({ ...formData, certName: e.target.value })}
             />
           </div>
 
           <div>
-            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issued By</label>
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issued By</label>
             <input
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none"
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors text-zinc-900 dark:text-zinc-100"
               value={formData.issuedBy}
               onChange={(e) => setFormData({ ...formData, issuedBy: e.target.value })}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Issue Date</label>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issue Date</label>
               <input
                 type="date"
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
                 value={formData.issueDate}
                 onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Expiry Date</label>
+              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Expiry Date</label>
               <input
                 type="date"
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
                 value={formData.expiry}
                 onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Replace File (Optional)</label>
+          <div className="pt-2">
+            <label className="text-[10px] uppercase font-bold text-zinc-400 mb-2 block">Replace File (Optional)</label>
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => setNewFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+              className="w-full text-xs text-zinc-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:bg-zinc-100 file:text-zinc-600 hover:file:bg-zinc-200 dark:file:bg-zinc-800 dark:file:text-zinc-300 dark:hover:file:bg-zinc-700 transition-colors cursor-pointer"
             />
-            {newFile && <p className="text-[10px] text-zinc-400 mt-1">Selected: {newFile.name}</p>}
+            {newFile && <p className="text-[10px] font-bold text-zinc-400 mt-2 px-1 truncate">Selected: {newFile.name}</p>}
           </div>
         </div>
 
-        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3 shrink-0 border-t border-zinc-100 dark:border-zinc-800/50">
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="px-4 py-2 text-xs font-bold uppercase text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
+            className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold uppercase shadow-lg shadow-orange-500/20 disabled:opacity-50"
+            className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all active:scale-95"
           >
             {isSaving ? "Saving..." : "Save Changes"}
           </button>
@@ -614,7 +599,6 @@ function EditCertificateModal({
     </div >
   );
 }
-
 
 export default function CertificatesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -631,19 +615,13 @@ export default function CertificatesPage() {
     loadCertificates();
   }, []);
 
-  // --- HELPER: Detect MIME type from Base64 signature ---
   const getMimeType = (b64: string) => {
-    // PDF signature (JVBERi0...)
     if (b64.startsWith('JVBERi0')) return 'application/pdf';
-    // PNG signature (iVBORw0KGgo...)
     if (b64.startsWith('iVBORw0KGgo')) return 'image/png';
-    // JPEG signature (/9j/...)
     if (b64.startsWith('/9j/')) return 'image/jpeg';
-    // Default fallback
     return 'application/pdf';
   };
 
-  // --- HELPER: Convert Base64 to Blob ---
   const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
     try {
       const byteCharacters = atob(b64Data);
@@ -660,7 +638,6 @@ export default function CertificatesPage() {
       }
       return new Blob(byteArrays, { type: contentType });
     } catch (e) {
-      console.error("Blob creation failed:", e);
       return null;
     }
   };
@@ -671,20 +648,16 @@ export default function CertificatesPage() {
 
       const mapped = data.map((c: any) => {
         let fileUrl = "";
-        let finalMimeType = "application/pdf"; // Default
+        let finalMimeType = "application/pdf";
 
         if (c.cert) {
-          // 1. Auto-detect correct MIME type from data
           finalMimeType = getMimeType(c.cert);
-
-          // 2. Create Blob with correct type
           const blob = b64toBlob(c.cert, finalMimeType);
           if (blob) {
             fileUrl = URL.createObjectURL(blob);
           }
         }
 
-        // Ensure filename has an extension for the UI
         let displayExt = ".pdf";
         if (finalMimeType === 'image/jpeg') displayExt = ".jpg";
         if (finalMimeType === 'image/png') displayExt = ".png";
@@ -705,11 +678,9 @@ export default function CertificatesPage() {
       });
       setCertificates(mapped);
     } catch (error) {
-      console.error("Failed to load certificates:", error);
       toast.error("Failed to load certificates");
     }
   };
-
 
   const filteredCerts = useMemo(() => {
     return certificates.filter((cert) => {
@@ -720,7 +691,6 @@ export default function CertificatesPage() {
       return matchesSearch && matchesFilter;
     });
   }, [searchTerm, filter, certificates]);
-
 
   const stats = {
     total: certificates.length,
@@ -736,7 +706,6 @@ export default function CertificatesPage() {
         const result = reader.result as string;
         const base64Content = result.includes(',') ? result.split(',')[1] : "";
 
-        // Calculate status based on expiry date
         const today = new Date();
         const expiry = new Date(expiryDate);
         const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -767,7 +736,6 @@ export default function CertificatesPage() {
       reader.readAsDataURL(file);
 
     } catch (error) {
-      console.error("Upload failed", error);
       toast.error("Upload failed");
     }
   };
@@ -803,7 +771,6 @@ export default function CertificatesPage() {
       toast.success("Certificate updated successfully");
       loadCertificates();
     } catch (error) {
-      console.error("Update failed", error);
       toast.error("Failed to update certificate");
     }
   };
@@ -823,22 +790,24 @@ export default function CertificatesPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white p-6 md:p-10 pb-40">
-      <div className="mx-auto max-w-[1400px]">
+    <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white pb-32 transition-colors duration-300">
+      <Toaster position="top-center" richColors />
 
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-200 dark:border-zinc-800 pb-6">
-          <div>
-            <h1 className="text-4xl font-light tracking-tighter text-zinc-900 dark:text-white">
-              Certificate<span className="font-bold">Vault</span>
+      <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
+              Certificate<span className="font-bold text-orange-500">Vault</span>
             </h1>
-            <p className="font-mono text-xs text-zinc-400 uppercase tracking-widest mt-2">
+            <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
               Secure Certificate Storage & Compliance
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => setIsUploadOpen(true)}
-              className="flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95"
             >
               <Plus size={14} />
               <span>New Certificate</span>
@@ -847,74 +816,74 @@ export default function CertificatesPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="relative overflow-hidden rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8 flex flex-col h-[200px] group hover:shadow-lg transition-all">
-            <div className="absolute -right-20 -top-20 w-40 h-40 bg-gradient-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-zinc-500">
-                  <FileText size={20} strokeWidth={1.5} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
+          <div className="relative overflow-hidden rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+            <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative z-10 flex-1 flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500">
+                  <FileText size={18} strokeWidth={1.5} />
                 </div>
-                <span className="font-mono text-[11px] uppercase text-zinc-500 font-bold tracking-widest">Total</span>
+                <span className="font-mono text-[10px] uppercase text-zinc-500 font-bold tracking-widest">Total</span>
               </div>
-              <div className="mb-6">
-                <h2 className="text-7xl font-light tracking-tighter text-zinc-900 dark:text-white">{stats.total}</h2>
+              <div>
+                <h2 className="text-5xl font-light tracking-tighter text-zinc-900 dark:text-white leading-none">{stats.total}</h2>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-2">Certificates on file</p>
               </div>
-              <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Certificates on file</p>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-zinc-950 p-8 flex flex-col h-[200px] group hover:shadow-lg transition-all">
-            <div className="absolute -right-20 -top-20 w-40 h-40 bg-gradient-to-br from-emerald-100/30 to-transparent dark:from-emerald-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 size={20} strokeWidth={2} />
+          <div className="relative overflow-hidden rounded-[2rem] border border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+            <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-emerald-100/30 to-transparent dark:from-emerald-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative z-10 flex-1 flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 size={18} strokeWidth={2} />
                 </div>
-                <span className="font-mono text-[11px] uppercase text-emerald-600 dark:text-emerald-400 font-bold tracking-widest">Valid</span>
+                <span className="font-mono text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold tracking-widest">Valid</span>
               </div>
-              <div className="mb-6">
-                <h2 className="text-7xl font-light tracking-tighter text-emerald-600 dark:text-emerald-400">{stats.VALID}</h2>
+              <div>
+                <h2 className="text-5xl font-light tracking-tighter text-emerald-600 dark:text-emerald-400 leading-none">{stats.VALID}</h2>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/60 dark:text-emerald-300/60 mt-2">Compliant & Current</p>
               </div>
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Compliant & Current</p>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-orange-200/50 dark:border-orange-900/30 bg-white dark:bg-zinc-950 p-8 flex flex-col h-[200px] group hover:shadow-lg transition-all">
-            <div className="absolute -right-20 -top-20 w-40 h-40 bg-gradient-to-br from-orange-100/30 to-transparent dark:from-orange-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600 dark:text-orange-400">
-                  <Clock size={20} strokeWidth={2} />
+          <div className="relative overflow-hidden rounded-[2rem] border border-orange-200/50 dark:border-orange-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+            <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-orange-100/30 to-transparent dark:from-orange-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative z-10 flex-1 flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
+                  <Clock size={18} strokeWidth={2} />
                 </div>
-                <span className="font-mono text-[11px] uppercase text-orange-600 dark:text-orange-400 font-bold tracking-widest">Expiring</span>
+                <span className="font-mono text-[10px] uppercase text-orange-600 dark:text-orange-400 font-bold tracking-widest">Expiring</span>
               </div>
-              <div className="mb-6">
-                <h2 className="text-7xl font-light tracking-tighter text-orange-600 dark:text-orange-400">{stats.EXPIRING}</h2>
+              <div>
+                <h2 className="text-5xl font-light tracking-tighter text-orange-600 dark:text-orange-400 leading-none">{stats.EXPIRING}</h2>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-orange-700/60 dark:text-orange-300/60 mt-2">Within 90 days</p>
               </div>
-              <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">Within 90 days</p>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-red-200/50 dark:border-red-900/30 bg-white dark:bg-zinc-950 p-8 flex flex-col h-[200px] group hover:shadow-lg transition-all">
-            <div className="absolute -right-20 -top-20 w-40 h-40 bg-gradient-to-br from-red-100/30 to-transparent dark:from-red-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600 dark:text-red-400">
-                  <AlertTriangle size={20} strokeWidth={2} />
+          <div className="relative overflow-hidden rounded-[2rem] border border-red-200/50 dark:border-red-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+            <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-red-100/30 to-transparent dark:from-red-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative z-10 flex-1 flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400">
+                  <AlertTriangle size={18} strokeWidth={2} />
                 </div>
-                <span className="font-mono text-[11px] uppercase text-red-600 dark:text-red-400 font-bold tracking-widest">Expired</span>
+                <span className="font-mono text-[10px] uppercase text-red-600 dark:text-red-400 font-bold tracking-widest">Expired</span>
               </div>
-              <div className="mb-6">
-                <h2 className="text-7xl font-light tracking-tighter text-red-600 dark:text-red-400">{stats.EXPIRED}</h2>
+              <div>
+                <h2 className="text-5xl font-light tracking-tighter text-red-600 dark:text-red-400 leading-none">{stats.EXPIRED}</h2>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-700/60 dark:text-red-300/60 mt-2">Renewal required</p>
               </div>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">Renewal required</p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1 group">
+        <div className="flex flex-col sm:flex-row gap-4 w-full">
+          <div className="relative flex-1 min-w-0 group">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-orange-500 transition-colors"
               size={16}
@@ -924,19 +893,19 @@ export default function CertificatesPage() {
               placeholder="Search certificates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-orange-500 dark:focus:border-orange-500 transition-colors placeholder:text-zinc-400"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs font-medium outline-none focus:border-orange-500 dark:focus:border-orange-500 transition-colors placeholder:text-zinc-400"
             />
           </div>
 
-          <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <div className="flex p-1 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar shrink-0">
             {["all", "VALID", "EXPIRING", "EXPIRED"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all",
+                  "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap",
                   filter === f
-                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 )}
               >
@@ -946,7 +915,7 @@ export default function CertificatesPage() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 w-full">
           <AnimatePresence>
             {filteredCerts.map((cert) => {
               const dateParts = formatDateDisplay(cert.expiryDate);
@@ -958,46 +927,44 @@ export default function CertificatesPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-xl transition-all"
+                  className="group relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md transition-all w-full"
                 >
-
                   <div className={cn(
                     "absolute top-0 left-0 w-1 h-full transition-colors duration-300",
                     cert.status === 'EXPIRED' ? "bg-red-500" :
                       cert.status === 'EXPIRING' ? "bg-amber-500" : "bg-emerald-500"
                   )} />
 
-                  <div className="relative flex flex-col md:grid md:grid-cols-[1fr_auto_auto] gap-6 p-6 items-start md:items-center pl-8">
-                    <div className="flex items-center gap-4 w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 gap-4 sm:gap-6 w-full pl-6 sm:pl-8">
+                    
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div className={cn(
-                        "h-14 w-14 flex-shrink-0 flex items-center justify-center rounded-xl border transition-all shadow-sm",
+                        "h-12 w-12 flex-shrink-0 flex items-center justify-center rounded-xl border transition-all shadow-sm",
                         cert.status === "EXPIRED"
                           ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400"
                           : cert.status === "EXPIRING"
                             ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400"
                             : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400"
                       )}>
-                        <Award size={24} strokeWidth={1.5} />
+                        <Award size={20} strokeWidth={1.5} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-zinc-900 dark:text-white text-base truncate">
-                            {cert.name}
-                          </h3>
-                        </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono flex items-center gap-2 truncate">
-                          <span>{cert.issuer}</span>
-                          <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-                          <span>ID: {1000 + cert.id}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-zinc-900 dark:text-white text-sm truncate mb-0.5">
+                          {cert.name}
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono flex items-center gap-1.5 truncate">
+                          <span className="truncate">{cert.issuer}</span>
+                          <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
+                          <span className="shrink-0">ID: {1000 + cert.id}</span>
                         </p>
                       </div>
                     </div>
 
-
-                    <div className="flex items-center gap-6 min-w-[240px] justify-end">
-                      <div className="flex flex-col items-end">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end w-full sm:w-auto gap-4 sm:gap-6 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800/50 pt-4 sm:pt-0 shrink-0">
+                      
+                      <div className="flex flex-col sm:items-end min-w-[110px]">
                         <span className={cn(
-                          "text-[10px] font-bold uppercase tracking-wide mb-1",
+                          "text-[9px] font-bold uppercase tracking-wide mb-0.5",
                           cert.status === 'EXPIRED' ? "text-red-500" :
                             cert.status === 'EXPIRING' ? "text-amber-500" :
                               "text-zinc-400"
@@ -1011,58 +978,47 @@ export default function CertificatesPage() {
                         <div className={cn("flex items-baseline gap-1.5",
                           cert.status === 'EXPIRED' ? "opacity-60 grayscale" : ""
                         )}>
-                          <span className="text-3xl font-bold font-mono tracking-tighter text-zinc-900 dark:text-white">{dateParts.day}</span>
-                          <span className="text-sm font-bold uppercase text-zinc-500">{dateParts.month}</span>
-                          <span className="text-sm font-light text-zinc-400">{dateParts.year}</span>
+                          <span className="text-xl font-bold font-mono tracking-tighter text-zinc-900 dark:text-white">{dateParts.day}</span>
+                          <span className="text-[10px] font-bold uppercase text-zinc-500">{dateParts.month}</span>
+                          <span className="text-[10px] font-medium text-zinc-400">{dateParts.year}</span>
                         </div>
                       </div>
 
-                      <div className="hidden md:block">
-                        <StatusBadge status={cert.status} />
-                      </div>
-                    </div>
-
-                    {/* RIGHT: Actions */}
-                    <div className="flex items-center justify-end gap-1 md:border-l md:border-zinc-200 md:dark:border-zinc-800 md:pl-6">
-                      {/* Mobile Badge only */}
-                      <div className="md:hidden mr-auto">
-                        <StatusBadge status={cert.status} />
+                      <div className="sm:hidden block">
+                         <StatusBadge status={cert.status} />
                       </div>
 
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1 sm:border-l sm:border-zinc-200 sm:dark:border-zinc-800 sm:pl-6 w-full sm:w-auto justify-end sm:justify-center mt-2 sm:mt-0">
+                        <div className="hidden sm:block mr-4">
+                          <StatusBadge status={cert.status} />
+                        </div>
                         <button
-                          onClick={() => {
-                            setSelectedCert(cert);
-                            setShowViewer(true);
-                          }}
-                          className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                          onClick={() => { setSelectedCert(cert); setShowViewer(true); }}
+                          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                           title="View"
                         >
-                          <Eye size={18} />
+                          <Eye size={16} />
                         </button>
                         <button
                           onClick={() => handleDownload(cert)}
-                          className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                           title="Download"
                         >
-                          <Download size={18} />
+                          <Download size={16} />
                         </button>
                         <button
-                          onClick={() => {
-                            setSelectedCert(cert);
-                            setShowEditor(true);
-                          }}
-                          className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                          onClick={() => { setSelectedCert(cert); setShowEditor(true); }}
+                          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                           title="Edit"
                         >
-                          <Edit size={18} />
+                          <Edit size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(cert.id)}
-                          className="p-2.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                           title="Delete"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -1072,25 +1028,26 @@ export default function CertificatesPage() {
             })}
           </AnimatePresence>
           {filteredCerts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl">
-              <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
-              <p>No certificates found matching your criteria.</p>
+            <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl w-full">
+              <Search size={40} strokeWidth={1} className="mb-4 opacity-20" />
+              <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">No certificates found matching your criteria.</p>
             </div>
           )}
         </div>
+
         <div
           onClick={() => setIsUploadOpen(true)}
-          className="mt-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer group"
+          className="mt-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center text-center hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer group w-full"
         >
-          <div className="h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <UploadCloud size={24} className="text-zinc-400 group-hover:text-orange-500" />
+          <div className="h-14 w-14 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <UploadCloud size={20} className="text-zinc-400 group-hover:text-orange-500" />
           </div>
-          <h3 className="text-zinc-900 dark:text-white font-bold">Drop certificates to upload</h3>
-          <p className="text-xs text-zinc-500 mt-1 max-w-xs mx-auto">
-            Support for PDF, JPG, and PNG. Drag and drop or click to browse.
+          <h3 className="text-zinc-900 dark:text-white font-bold text-sm">Drop certificates to upload</h3>
+          <p className="text-[10px] font-bold text-zinc-500 mt-1 max-w-xs mx-auto uppercase tracking-wider">
+            PDF, JPG, PNG Supported
           </p>
         </div>
-      </div>
+      </main>
 
       <AnimatePresence>
         {isUploadOpen && (

@@ -15,19 +15,15 @@ import {
   RefreshCcw,
   ShieldCheck,
   AlertCircle,
-  User,
   ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-// ✅ IMPORTING THE API SERVICE
 import { api } from "@/app/services/api";
 
-// --- LIVE CLOCK UTILITY ---
 function LiveTime() {
   const [time, setTime] = useState("");
   useEffect(() => {
-    // Set initial time to avoid hydration mismatch
     setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     const timer = setInterval(() => {
       setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -40,34 +36,28 @@ function LiveTime() {
 export default function LoginPage() {
   const router = useRouter();
 
-  // --- STATES ---
   const [mode, setMode] = useState<"login" | "reset" | "signup">("login");
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
 
-  // Login Form States
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Signup Form States
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPass, setSignupPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
 
-  // Reset Flow States
   const [resetStep, setResetStep] = useState<"email" | "otp" | "newPassword">("email");
   const [resetEmail, setResetEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newResetPass, setNewResetPass] = useState("");
   const [confirmResetPass, setConfirmResetPass] = useState("");
-
-  // --- HANDLERS ---
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,29 +65,24 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // ✅ REAL API CALL
       const response = await api.login({ email, password });
 
-      // Success Logic
       localStorage.setItem("token", response.access_token);
       if (rememberMe) localStorage.setItem("remembered_user", email);
 
       setIsLoading(false);
-      setIsRedirecting(true); // Trigger "Access Granted" Animation
+      setIsRedirecting(true);
 
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
 
     } catch (err: any) {
-      // Error Logic
       setIsLoading(false);
-      // Try to get the specific error message from the backend, otherwise default
       const errMsg = err.response?.data?.detail || "Invalid credentials. Access Denied.";
       setError(errMsg);
       toast.error(errMsg);
 
-      // Trigger Shake
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
@@ -120,7 +105,6 @@ export default function LoginPage() {
       });
       toast.success("Crew member registered successfully");
       setMode("login");
-      // Optional: Auto-fill login fields
       setEmail(signupEmail);
       setPassword("");
     } catch (err: any) {
@@ -135,7 +119,6 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Using simulated delays for Reset Flow
     setTimeout(() => {
       setIsLoading(false);
 
@@ -154,7 +137,6 @@ export default function LoginPage() {
         if (newResetPass === confirmResetPass && newResetPass.length >= 6) {
           toast.success("Password reset successful!");
           setMode("login");
-          // Cleanup
           setResetStep("email");
           setResetEmail("");
           setOtp("");
@@ -168,16 +150,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 font-sans relative">
+    <div className="flex min-h-screen w-full items-center justify-center p-4 font-sans relative">
 
-      {/* Cinematic Spotlight */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[120px]" />
       </div>
 
       <motion.div
         layout
-        // ✅ SAFE ANIMATION: Removed initial={{ opacity: 0 }} to prevent blank screen
         animate={{
           scale: 1,
           y: 0,
@@ -185,13 +165,11 @@ export default function LoginPage() {
         }}
         className="w-full max-w-[420px] relative z-10"
       >
-        {/* --- MAIN TERMINAL CARD --- */}
         <div className={cn(
           "bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border rounded-[2rem] shadow-2xl overflow-hidden relative transition-colors duration-300",
           error ? "border-red-500/50" : "border-zinc-200 dark:border-zinc-800"
         )}>
 
-          {/* Status Line */}
           <div className={cn(
             "absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent to-transparent opacity-50 transition-colors duration-500",
             isRedirecting ? "via-emerald-500" : error ? "via-red-500" : mode === 'signup' ? "via-emerald-500" : mode === 'reset' ? "via-blue-500" : "via-orange-500"
@@ -199,7 +177,6 @@ export default function LoginPage() {
 
           <div className="p-8">
 
-            {/* HEADER */}
             <div className="text-center mb-8">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white mb-5 shadow-inner">
                 <Anchor size={28} strokeWidth={2} />
@@ -216,11 +193,9 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* DYNAMIC CONTENT AREA */}
             <div className="min-h-[260px]">
               <AnimatePresence mode="wait">
 
-                {/* 1. SUCCESS / REDIRECTING VIEW */}
                 {isRedirecting ? (
                   <motion.div
                     key="success"
@@ -234,7 +209,6 @@ export default function LoginPage() {
                   </motion.div>
                 ) : (
 
-                  /* 2. LOGIN FORM */
                   mode === "login" && (
                     <motion.form
                       key="login"
@@ -244,7 +218,6 @@ export default function LoginPage() {
                       onSubmit={handleLogin}
                       className="space-y-5"
                     >
-                      {/* Error Banner */}
                       {error && (
                         <motion.div
                           initial={{ opacity: 0, y: -10 }}
@@ -257,7 +230,6 @@ export default function LoginPage() {
                       )}
 
                       <div className="space-y-4">
-                        {/* Email */}
                         <div className="group">
                           <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Captain's ID</label>
                           <div className="relative">
@@ -280,7 +252,6 @@ export default function LoginPage() {
                           </div>
                         </div>
 
-                        {/* Password */}
                         <div className="group">
                           <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Passcode</label>
                           <div className="relative">
@@ -311,7 +282,6 @@ export default function LoginPage() {
                         </div>
                       </div>
 
-                      {/* Utils */}
                       <div className="flex items-center justify-between px-1">
                         <label className="flex items-center gap-2 cursor-pointer group">
                           <input
@@ -349,7 +319,6 @@ export default function LoginPage() {
                   )
                 )}
 
-                {/* 3. SIGN UP FORM */}
                 {mode === "signup" && !isRedirecting && (
                   <motion.form
                     key="signup"
@@ -441,7 +410,6 @@ export default function LoginPage() {
                   </motion.form>
                 )}
 
-                {/* 4. RECOVERY MODE */}
                 {mode === "reset" && !isRedirecting && (
                   <motion.form
                     key="reset"
@@ -550,7 +518,6 @@ export default function LoginPage() {
 
           </div>
 
-          {/* SYSTEM STATUS FOOTER */}
           <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
             <div className="flex items-center gap-4 text-zinc-500 font-mono">
               <span className="flex items-center gap-1.5"><Waves size={12} className="text-blue-500" /> Calm</span>

@@ -1,15 +1,47 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
+node_modules/
 /node_modules
 
 # python
-/__pycache__/
-*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# python environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # next.js
 /.next/
 /out/
+build/
+dist/
 
 # production
 /build
@@ -21,6 +53,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env*
 
 # vercel
@@ -30,5 +67,42 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#other
+# electron / release artifacts
+release/
+dist/
+out/
+*.exe
+*.dmg
+*.zip
+*.app
+*.pkg
+*.snap
+*.deb
+*.rpm
+*.tar.gz
+*.tgz
+*.mas
+
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# other
 *.pdf
+public/temp/

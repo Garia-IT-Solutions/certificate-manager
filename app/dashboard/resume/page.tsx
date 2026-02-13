@@ -31,7 +31,6 @@ const INITIAL_DATA: ResumeData = {
     signatureImage: ""
 };
 
-// Helper to calculate duration between two dates
 function calculateDuration(signOn: string, signOff: string): string {
     if (!signOn || !signOff) return "";
     const start = new Date(signOn);
@@ -46,7 +45,6 @@ function calculateDuration(signOn: string, signOff: string): string {
     return `${days}d`;
 }
 
-// Transform backend sea time logs to resume seaService format
 function transformSeaTimeLogs(logs: any[]): ResumeData['seaService'] {
     return logs.map(log => ({
         vesselName: log.vesselName || "",
@@ -61,9 +59,7 @@ function transformSeaTimeLogs(logs: any[]): ResumeData['seaService'] {
     }));
 }
 
-// Transform backend certificates to resume cocs format (filter CoC types)
 function transformCertificatesToCocs(certs: any[]): ResumeData['cocs'] {
-    // Filter certificates that are CoCs (not STCW courses)
     const cocTypes = ['coc', 'competency', 'license', 'licence'];
     const cocCerts = certs.filter(c =>
         cocTypes.some(t => c.certType?.toLowerCase().includes(t)) ||
@@ -81,9 +77,7 @@ function transformCertificatesToCocs(certs: any[]): ResumeData['cocs'] {
     }));
 }
 
-// Transform backend certificates to resume stcwCourses format (filter STCW types)
 function transformCertificatesToStcw(certs: any[]): ResumeData['stcwCourses'] {
-    // Filter certificates that are STCW courses
     const stcwTypes = ['stcw', 'safety', 'fire', 'survival', 'medical', 'first aid', 'pssr', 'efa', 'pst', 'aff', 'fpff'];
     const stcwCerts = certs.filter(c =>
         stcwTypes.some(t => c.certType?.toLowerCase().includes(t)) ||
@@ -100,7 +94,6 @@ function transformCertificatesToStcw(certs: any[]): ResumeData['stcwCourses'] {
     }));
 }
 
-// Transform backend documents to resume documents format
 function transformDocuments(docs: any[]): ResumeData['documents'] {
     return docs.map(doc => ({
         name: doc.docName || "",
@@ -117,7 +110,6 @@ export default function ResumePage() {
     const [errors, setErrors] = useState<Record<string, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch data from APIs on component mount
     useEffect(() => {
         async function fetchData() {
             try {
@@ -133,12 +125,10 @@ export default function ResumePage() {
                     }).then(res => res.ok ? res.json() : null).catch(() => null)
                 ]);
 
-                // Parse Profile Helper
                 const parseJSON = (str: any, fallback: any) => {
                     try { return JSON.parse(str) || fallback; } catch { return fallback; }
                 };
 
-                // Transform and merge with initial data
                 setResumeData(prev => {
                     const data = { ...prev };
 
@@ -158,7 +148,6 @@ export default function ResumePage() {
                         const permAddr = parseJSON(profile.permanent_address, {});
                         const presAddr = parseJSON(profile.present_address, {});
 
-                        // Populate Addresses
                         data.contactInfo.permanentAddress = {
                             line1: permAddr.line1 || "",
                             line2: permAddr.line2 || "",
@@ -179,7 +168,6 @@ export default function ResumePage() {
                             mobile: presAddr.mobile || ""
                         };
 
-                        // Next of Kin
                         const nok = parseJSON(profile.next_of_kin, {});
                         data.nextOfKin = {
                             name: nok.name || "",
@@ -188,7 +176,6 @@ export default function ResumePage() {
                             contactNo: nok.contactNo || ""
                         };
 
-                        // Physical
                         const phys = parseJSON(profile.physical_description, {});
                         data.physicalDescription = {
                             hairColor: phys.hairColor || "",
@@ -211,7 +198,7 @@ export default function ResumePage() {
 
                 toast.success("Resume data loaded!");
             } catch (error) {
-                console.error("Failed to fetch data:", error);
+                console.error(error);
                 toast.error("Could not load data.");
             } finally {
                 setIsLoading(false);
@@ -228,9 +215,7 @@ export default function ResumePage() {
         if (!resumeData.personalInfo.surname) newErrors["personalInfo.surname"] = true;
         if (!resumeData.personalInfo.firstName) newErrors["personalInfo.firstName"] = true;
         if (!resumeData.personalInfo.nationality) newErrors["personalInfo.nationality"] = true;
-
         if (!resumeData.contactInfo.permanentAddress.mobile) newErrors["contactInfo.permanentAddress.mobile"] = true;
-        // if (!resumeData.contactInfo.permanentAddress.email) newErrors["contactInfo.permanentAddress.email"] = true;
 
         if (Object.keys(newErrors).length > 0) {
             isValid = false;
@@ -249,81 +234,85 @@ export default function ResumePage() {
             generateResumePDF(resumeData);
             toast.success("Resume PDF generated successfully!");
         } catch (error) {
-            console.error("PDF Generation Error:", error);
+            console.error(error);
             toast.error("Failed to generate PDF. Check console for details.");
         }
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
+        <div className="min-h-screen bg-transparent pb-32 transition-colors duration-300">
             <Toaster position="top-center" richColors />
 
-            {/* HEADER */}
-            <header className="px-8 pt-8 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-200 dark:border-zinc-800">
-                <div>
-                    <h1 className="text-3xl font-light tracking-tighter">Resume<span className="font-bold text-orange-600">Generator</span></h1>
-                    <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1">Professional Marine CV Builder</p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isLoading}
-                        className="flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase hover:opacity-90 transition-all shadow-md active:scale-95 disabled:opacity-50"
-                    >
-                        <Download size={14} /> <span>Download PDF</span>
-                    </button>
-                    <ThemeToggle />
-                </div>
-            </header>
+            <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
+                            Resume<span className="font-bold text-orange-600">Generator</span>
+                        </h1>
+                        <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
+                            Professional Marine CV Builder
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading}
+                            className="flex flex-1 sm:flex-none justify-center items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 rounded-xl font-mono text-[10px] sm:text-xs font-bold uppercase hover:opacity-90 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        >
+                            <Download size={14} /> <span>Download PDF</span>
+                        </button>
+                        <ThemeToggle />
+                    </div>
+                </header>
 
-            <main className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* FORM SECTION */}
-                <div className="lg:col-span-12 xl:col-span-7 space-y-6">
-                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-orange-100 dark:bg-orange-900/20 text-orange-600 rounded-lg">
-                                <FileText size={20} />
-                            </div>
-                            <h2 className="text-xl font-bold">Edit Details</h2>
-                            {isLoading && (
-                                <div className="flex items-center gap-2 ml-auto text-zinc-400">
-                                    <Loader2 size={16} className="animate-spin" />
-                                    <span className="text-xs">Loading your data...</span>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+                    <div className="lg:col-span-7 space-y-6">
+                        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 rounded-xl">
+                                        <FileText size={20} />
+                                    </div>
+                                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Details</h2>
                                 </div>
+                                {isLoading && (
+                                    <div className="flex items-center gap-2 sm:ml-auto text-zinc-400">
+                                        <Loader2 size={16} className="animate-spin" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Loading Data...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {isLoading ? (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                    <Loader2 size={40} className="animate-spin text-orange-500" />
+                                    <p className="text-zinc-500 text-xs text-center font-bold uppercase tracking-widest">Compiling Records</p>
+                                </div>
+                            ) : (
+                                <ResumeForm
+                                    data={resumeData}
+                                    onUpdate={setResumeData}
+                                    onGenerate={handleGenerate}
+                                    errors={errors}
+                                />
                             )}
                         </div>
-
-                        {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                <Loader2 size={40} className="animate-spin text-orange-500" />
-                                <p className="text-zinc-500 text-sm">Loading your documents, certificates, and sea time logs...</p>
-                            </div>
-                        ) : (
-                            <ResumeForm
-                                data={resumeData}
-                                onUpdate={setResumeData}
-                                onGenerate={handleGenerate}
-                                errors={errors}
-                            />
-                        )}
                     </div>
-                </div>
 
-                {/* PREVIEW SECTION */}
-                <div className="lg:col-span-12 xl:col-span-5 space-y-6">
-                    <div className="sticky top-8">
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-2xl overflow-hidden flex flex-col items-center">
-                            <h3 className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-4">Live Preview</h3>
+                    <div className="lg:col-span-5 space-y-6">
+                        <div className="sticky top-24">
+                            <div className="bg-zinc-900 dark:bg-[#09090b] border border-zinc-800 rounded-2xl p-4 shadow-2xl overflow-hidden flex flex-col items-center">
+                                <h3 className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-4">Live Preview</h3>
 
-                            {/* Scrollable Container */}
-                            <div className="bg-zinc-800/50 w-full h-[70vh] rounded-xl overflow-y-auto overflow-x-hidden relative flex flex-col items-center py-8 custom-scrollbar">
-                                <div className="scale-[0.5] sm:scale-[0.6] origin-top">
-                                    <ResumePreview data={resumeData} />
+                                <div className="bg-zinc-800/50 dark:bg-zinc-900/50 w-full h-[60vh] sm:h-[70vh] rounded-xl overflow-y-auto overflow-x-hidden relative flex flex-col items-center py-8 custom-scrollbar">
+                                    <div className="scale-[0.45] sm:scale-[0.55] xl:scale-[0.6] origin-top">
+                                        <ResumePreview data={resumeData} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300">
-                            <p><strong>Note:</strong> The PDF generation runs entirely in your browser. No data is sent to any server.</p>
+                            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-xl text-[10px] text-blue-700 dark:text-blue-300 font-medium">
+                                <p><strong>Note:</strong> The PDF generation runs entirely in your browser. No data is sent to any server.</p>
+                            </div>
                         </div>
                     </div>
                 </div>

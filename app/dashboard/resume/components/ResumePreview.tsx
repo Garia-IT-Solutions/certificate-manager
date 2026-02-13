@@ -10,17 +10,13 @@ interface ResumePreviewProps {
 }
 
 export function ResumePreview({ data, className, id }: ResumePreviewProps) {
-
-
     return (
         <div id={id} className={cn("bg-white text-black font-serif p-[8mm] shadow-2xl min-h-[297mm] w-[210mm]", className)}>
 
-            {/* HEADER */}
             <div className="text-center mb-6">
                 <h1 className="text-xl font-bold uppercase underline underline-offset-4 decoration-2">CURRICULUM VITAE</h1>
             </div>
 
-            {/* PERSONAL DATA */}
             <div className="border border-black mb-1 text-[11px] leading-tight">
                 <div className="p-1 font-bold border-b border-black bg-gray-100">PERSONAL DATA:</div>
 
@@ -41,16 +37,15 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                             <span className="font-bold">Date available:</span> <span>{data.personalInfo.dateAvailable.toUpperCase()}</span>
                         </div>
                     </div>
-                    <div className="w-32 border-l border-black flex items-center justify-center bg-gray-50 overflow-hidden">
+                    <div className="w-32 border-l border-black flex items-center justify-center bg-gray-50 overflow-hidden shrink-0">
                         {data.personalInfo.photoUrl ? (
                             <img src={data.personalInfo.photoUrl} alt="Passport Photo" className="w-full h-full object-cover" />
                         ) : (
-                            <span className="text-gray-400 text-[9px] text-center">PASSPORT SIZE<br />PHOTO</span>
+                            <span className="text-gray-400 text-[9px] text-center font-sans tracking-widest leading-relaxed">PASSPORT<br />PHOTO</span>
                         )}
                     </div>
                 </div>
 
-                {/* ADDRESSES */}
                 <div className="grid grid-cols-2 border-b border-black text-[10px]">
                     <div className="p-2 border-r border-black">
                         <span className="font-bold">Permanent Address:</span> {data.contactInfo.permanentAddress.line1}, {data.contactInfo.permanentAddress.line2}, {data.contactInfo.permanentAddress.city}, {data.contactInfo.permanentAddress.state}, {data.contactInfo.permanentAddress.zip}
@@ -72,7 +67,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                     </div>
                 </div>
 
-                {/* DOCUMENTS TABLE */}
                 {data.documents && data.documents.length > 0 && (
                     <table className="w-full text-left text-[10px] border-collapse">
                         <thead>
@@ -101,7 +95,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 )}
             </div>
 
-            {/* COC TABLE */}
             {data.cocs && data.cocs.length > 0 && (
                 <div className="border border-black mb-1 text-[10px]">
                     <div className="text-center font-bold border-b border-black bg-gray-100 p-0.5">DETAILS OF LICENCES/CERTIFICATES OF COMPETENCY</div>
@@ -132,7 +125,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* EDUCATION / PRE-SEA */}
             {data.education && (data.education.institute || data.education.degree) && (
                 <div className="border border-black mb-1 text-[10px]">
                     <div className="text-center font-bold border-b border-black bg-gray-100 p-0.5">RECORD OF PRE-SEA TRAINING / COLLEGE</div>
@@ -161,7 +153,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* STCW COURSES */}
             {data.stcwCourses && data.stcwCourses.length > 0 && (
                 <div className="border border-black mb-1 text-[10px]">
                     <div className="text-center font-bold border-b border-black bg-gray-100 p-0.5">DETAILS OF STCW COURSES</div>
@@ -192,7 +183,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* EDUCATIONAL QUALIFICATION */}
             {data.educationalQualification && (data.educationalQualification.degree || data.educationalQualification.sscMarks) && (
                 <div className="border border-black mb-1 text-[10px]">
                     <table className="w-full text-left border-collapse">
@@ -210,7 +200,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* NEXT OF KIN */}
             {data.nextOfKin && (data.nextOfKin.name || data.nextOfKin.address) && (
                 <div className="border border-black mb-1 text-[10px] p-2">
                     <div className="flex justify-between mb-1">
@@ -222,7 +211,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* PHYSICAL DESCRIPTION */}
             {data.physicalDescription && (data.physicalDescription.height || data.physicalDescription.hairColor) && (
                 <div className="border border-black mb-1 text-[10px]">
                     <table className="w-full text-left border-collapse">
@@ -242,7 +230,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* SEA SERVICE */}
             {data.seaService && data.seaService.length > 0 && (
                 <div className="border border-black mb-1 text-[10px]">
                     <div className="font-bold border-b border-black bg-gray-100 p-1 pl-2 underline">SEA-TIME EXPERIENCE:</div>
@@ -280,7 +267,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* STRENGTHS */}
             {data.strengths && (
                 <div className="border border-black mb-1 text-[10px] p-2">
                     <div className="font-bold mb-1">STRENGTHS:</div>
@@ -288,7 +274,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* MISCELLANEOUS REMARKS */}
             {data.miscellaneousRemarks && (
                 <div className="border border-black mb-1 text-[10px] p-2">
                     <div className="font-bold mb-1">MISCELLANEOUS REMARKS:</div>
@@ -296,7 +281,6 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
-            {/* DECLARATION */}
             <div className="text-[10px] mt-4">
                 <div className="font-bold italic underline mb-2">DECLARATION:</div>
                 <p className="mb-4">I hereby declare that the information furnished above is true to the best of my knowledge.</p>
