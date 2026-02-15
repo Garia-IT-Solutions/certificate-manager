@@ -23,6 +23,8 @@ class ProfileBase(BaseModel):
     avatar_url: Optional[str] = None
     skills: List[str] = []
     certificates: List[int] = []
+    rank: Optional[str] = None
+    department: Optional[str] = None
 
     @field_validator('dob', mode='before')
     @classmethod
@@ -56,6 +58,8 @@ class ProfileUpdate(BaseModel):
     avatar_url: Optional[str] = None
     skills: Optional[List[str]] = None
     certificates: Optional[List[int]] = None
+    rank: Optional[str] = None
+    department: Optional[str] = None
 
 class Profile(ProfileBase):
     id: int

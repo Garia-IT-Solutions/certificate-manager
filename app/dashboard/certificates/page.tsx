@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { api } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import {
   Award,
   Search,
@@ -19,10 +19,16 @@ import {
   UploadCloud,
   X,
   AlertCircle,
-  File
+  File as FileIcon,
+  LayoutGrid,
+  FilterX,
+  MoreHorizontal,
+  Anchor,
+  Stethoscope
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Switch } from "@/components/ui/switch";
 import { SYSTEM_CONFIG } from "@/lib/config";
 
 interface Certificate {
@@ -30,22 +36,140 @@ interface Certificate {
   name: string;
   issuer: string;
   issueDate: string;
-  expiryDate: string;
+  expiryDate: string | null;
   status: "VALID" | "EXPIRING" | "EXPIRED";
+  certType: string;
   fileUrl?: string;
+  fileBlob?: string; // Cache base64 data
   fileName?: string;
+}
+
+const CERTIFICATE_TYPES_CONFIG = [
+  { id: 'Certificate of Competency (CoC)', label: 'CoC', icon: Award, color: 'orange' },
+  { id: 'STCW Course', label: 'STCW', icon: Anchor, color: 'blue' },
+  { id: 'Medical Certificate', label: 'Medical', icon: Stethoscope, color: 'emerald' },
+  { id: 'License', label: 'License', icon: FileText, color: 'purple' },
+  { id: 'Other Certificate', label: 'Other', icon: FileIcon, color: 'zinc' },
+];
+
+function CertificateTypeModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+  activeCategory: string | null;
+  counts: Record<string, number>;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredTypes = useMemo(() => {
+    const configs = CERTIFICATE_TYPES_CONFIG.filter(cat =>
+      cat.label.toLowerCase().includes(search.toLowerCase()) || cat.id.toLowerCase().includes(search.toLowerCase())
+    );
+    const dynamicKeys = Object.keys(counts).filter(k => !CERTIFICATE_TYPES_CONFIG.find(c => c.id === k));
+    const dynamicMatches = dynamicKeys.filter(k => k.toLowerCase().includes(search.toLowerCase())).map(k => ({
+      id: k,
+      label: k,
+      icon: FileIcon,
+      color: 'zinc'
+    }));
+    return [...configs, ...dynamicMatches];
+  }, [search, counts]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[102] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-2xl bg-white dark:bg-zinc-950 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+      >
+        <div className="p-6 pb-4 flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+          <div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Certificate Types</h3>
+            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5">Filter by Type</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search types..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-12 pl-12 pr-4 bg-zinc-100 dark:bg-zinc-900/50 border border-transparent focus:bg-white dark:focus:bg-zinc-950 border-zinc-200 dark:border-zinc-800 rounded-xl text-sm outline-none focus:border-orange-500 transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {filteredTypes.map((cat) => {
+              const isActive = activeCategory === cat.id;
+              const count = counts[cat.id] || 0;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => onSelect(cat.id)}
+                  className={cn(
+                    "p-4 rounded-xl border flex flex-col gap-3 transition-all cursor-pointer text-left group hover:border-orange-500",
+                    isActive
+                      ? "bg-zinc-50 dark:bg-zinc-900 border-orange-500 ring-1 ring-orange-500"
+                      : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+                  )}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      isActive
+                        ? "bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-500"
+                        : (cat as any).color === 'zinc'
+                          ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-700"
+                          : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-orange-500"
+                    )}>
+                      <cat.icon size={20} />
+                    </div>
+                    <span className={cn(
+                      "text-xs font-bold font-mono py-0.5 px-2 rounded-md",
+                      isActive ? "bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-500" : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                    )}>
+                      {count}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className={cn(
+                      "font-bold text-sm truncate",
+                      isActive ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white"
+                    )}>{cat.label}</h4>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-0.5">Certificates</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
 const INITIAL_DATA: Certificate[] = [];
 
-function getDaysUntilExpiry(expiryDate: string): number {
+function getDaysUntilExpiry(expiryDate: string | null): number {
+  if (!expiryDate) return Infinity;
   const today = new Date();
   const expiry = new Date(expiryDate);
   const diff = expiry.getTime() - today.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function formatDateDisplay(dateString: string) {
+function formatDateDisplay(dateString: string | null) {
+  if (!dateString) return { day: "", month: "", year: "Unlimited" };
   const date = new Date(dateString);
   return {
     day: date.getDate(),
@@ -142,7 +266,7 @@ function UploadModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string) => void;
+  onUpload: (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string | null) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -155,6 +279,7 @@ function UploadModal({
   const [issuedBy, setIssuedBy] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState("");
+  const [isUnlimited, setIsUnlimited] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -165,6 +290,7 @@ function UploadModal({
       setIssuedBy("");
       setIssueDate(new Date().toISOString().split('T')[0]);
       setExpiryDate("");
+      setIsUnlimited(false);
     }
   }, [isOpen]);
 
@@ -218,14 +344,14 @@ function UploadModal({
       toast.error("Please enter the issuing authority");
       return;
     }
-    if (!expiryDate) {
-      toast.error("Please enter an expiry date");
+    if (!isUnlimited && !expiryDate) {
+      toast.error("Please enter an expiry date or select Unlimited");
       return;
     }
 
     setIsUploading(true);
     setTimeout(() => {
-      onUpload(selectedFile, certType, certName, issuedBy, issueDate, expiryDate);
+      onUpload(selectedFile, certType, certName, issuedBy, issueDate, isUnlimited ? null : expiryDate);
       setIsUploading(false);
       onClose();
     }, 1500);
@@ -361,11 +487,30 @@ function UploadModal({
                     onChange={(e) => setIssueDate(e.target.value)}
                   />
                 </div>
+
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Expiry Date *</label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className={cn("text-[10px] uppercase font-bold transition-colors", isUnlimited ? "text-zinc-300" : "text-zinc-400")}>Expiry Date *</label>
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="unlimited" className={cn("text-[10px] font-bold cursor-pointer select-none transition-colors", isUnlimited ? "text-orange-600 dark:text-orange-500" : "text-zinc-400")}>Unlimited</label>
+                      <Switch
+                        id="unlimited"
+                        checked={isUnlimited}
+                        onCheckedChange={(checked) => {
+                          setIsUnlimited(checked);
+                          if (checked) setExpiryDate("");
+                        }}
+                        className="scale-75 data-[state=checked]:bg-orange-600 dark:data-[state=checked]:bg-orange-600"
+                      />
+                    </div>
+                  </div>
                   <input
                     type="date"
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
+                    disabled={isUnlimited}
+                    className={cn(
+                      "w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors",
+                      isUnlimited ? "text-zinc-300 cursor-not-allowed bg-zinc-100 dark:bg-zinc-900/50" : "text-zinc-700 dark:text-zinc-300"
+                    )}
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                   />
@@ -398,8 +543,8 @@ function UploadModal({
             {isUploading ? "Uploading..." : step === "upload" ? "Close" : "Upload Certificate"}
           </button>
         </div>
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   );
 }
 
@@ -450,7 +595,7 @@ function CertificateViewerModal({
             )
           ) : (
             <div className="text-center p-10 opacity-50">
-              <File size={48} className="mx-auto mb-4 text-zinc-400" />
+              <FileIcon size={48} className="mx-auto mb-4 text-zinc-400" />
               <p className="text-zinc-500 font-bold">Preview not available</p>
               <p className="text-[10px] text-zinc-400 mt-2 uppercase tracking-widest font-bold">Upload a real file to view</p>
             </div>
@@ -476,9 +621,10 @@ function EditCertificateModal({
     certName: initialData.name,
     issuedBy: initialData.issuer,
     issueDate: initialData.issueDate.split('T')[0],
-    expiry: initialData.expiryDate.split('T')[0],
+    expiry: initialData.expiryDate ? initialData.expiryDate.split('T')[0] : "",
     status: initialData.status
   });
+  const [isUnlimited, setIsUnlimited] = useState(!initialData.expiryDate);
   const [isSaving, setIsSaving] = useState(false);
   const [newFile, setNewFile] = useState<File | null>(null);
 
@@ -488,6 +634,15 @@ function EditCertificateModal({
     setIsSaving(true);
     try {
       let updateData: any = { ...formData };
+
+      // Handle unlimited expiry
+      if (isUnlimited) {
+        updateData.expiry = null;
+      } else if (!formData.expiry) {
+        toast.error("Please enter an expiry date or select Unlimited");
+        setIsSaving(false);
+        return;
+      }
 
       if (newFile) {
         const reader = new FileReader();
@@ -557,10 +712,28 @@ function EditCertificateModal({
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Expiry Date</label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className={cn("text-[10px] uppercase font-bold transition-colors", isUnlimited ? "text-zinc-300" : "text-zinc-400")}>Expiry Date</label>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="unlimited-edit" className={cn("text-[10px] font-bold cursor-pointer select-none transition-colors", isUnlimited ? "text-orange-600 dark:text-orange-500" : "text-zinc-400")}>Unlimited</label>
+                  <Switch
+                    id="unlimited-edit"
+                    checked={isUnlimited}
+                    onCheckedChange={(checked) => {
+                      setIsUnlimited(checked);
+                      if (checked) setFormData({ ...formData, expiry: "" });
+                    }}
+                    className="scale-75 data-[state=checked]:bg-orange-600 dark:data-[state=checked]:bg-orange-600"
+                  />
+                </div>
+              </div>
               <input
                 type="date"
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
+                disabled={isUnlimited}
+                className={cn(
+                  "w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors",
+                  isUnlimited ? "text-zinc-300 cursor-not-allowed bg-zinc-100 dark:bg-zinc-900/50" : "text-zinc-700 dark:text-zinc-300"
+                )}
                 value={formData.expiry}
                 onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
               />
@@ -609,6 +782,8 @@ export default function CertificatesPage() {
   const [certToDelete, setCertToDelete] = useState<number | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
 
   useEffect(() => {
@@ -647,38 +822,25 @@ export default function CertificatesPage() {
       const data = await api.getCertificates();
 
       const mapped = data.map((c: any) => {
-        let fileUrl = "";
-        let finalMimeType = "application/pdf";
-
-        if (c.cert) {
-          finalMimeType = getMimeType(c.cert);
-          const blob = b64toBlob(c.cert, finalMimeType);
-          if (blob) {
-            fileUrl = URL.createObjectURL(blob);
-          }
-        }
-
-        let displayExt = ".pdf";
-        if (finalMimeType === 'image/jpeg') displayExt = ".jpg";
-        if (finalMimeType === 'image/png') displayExt = ".png";
-
-        const hasExt = c.certName?.toLowerCase().endsWith(displayExt);
-        const finalName = (c.certName || "Untitled Certificate") + (hasExt ? "" : displayExt);
+        const hasExt = c.certName?.toLowerCase().match(/\.(pdf|jpg|jpeg|png)$/i);
+        const finalName = c.certName || "Untitled Certificate";
 
         return {
           id: c.id,
           name: c.certName || "Untitled Certificate",
           issuer: c.issuedBy || "Unknown Issuer",
+          certType: c.certType || "Other",
           issueDate: c.issueDate || new Date().toISOString(),
-          expiryDate: c.expiry || new Date().toISOString(),
+          expiryDate: c.expiry || null,
           status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
           fileName: finalName,
-          fileUrl: fileUrl
+          fileUrl: undefined, // Loaded on demand
+          fileBlob: undefined // Loaded on demand
         };
       });
       setCertificates(mapped);
     } catch (error) {
-      toast.error("Failed to load certificates");
+      console.error("Load certs error:", error);
     }
   };
 
@@ -688,18 +850,38 @@ export default function CertificatesPage() {
         cert.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cert.issuer.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = filter === "all" || cert.status === filter;
-      return matchesSearch && matchesFilter;
+      const matchesCategory = !activeCategory || cert.certType === activeCategory;
+
+      return matchesSearch && matchesFilter && matchesCategory;
     });
-  }, [searchTerm, filter, certificates]);
+  }, [searchTerm, filter, certificates, activeCategory]);
 
-  const stats = {
-    total: certificates.length,
-    VALID: certificates.filter((c) => c.status === "VALID").length,
-    EXPIRING: certificates.filter((c) => c.status === "EXPIRING").length,
-    EXPIRED: certificates.filter((c) => c.status === "EXPIRED").length,
-  };
+  const stats = useMemo(() => {
+    const counts = {
+      total: certificates.length,
+      VALID: 0,
+      EXPIRING: 0,
+      EXPIRED: 0
+    };
+    const categorized: Record<string, number> = {};
 
-  const handleUpload = async (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string) => {
+    certificates.forEach(cert => {
+      // Status counts
+      if (['VALID', 'EXPIRING', 'EXPIRED'].includes(cert.status)) {
+        counts[cert.status as keyof typeof counts]++;
+      } else {
+        counts['VALID']++;
+      }
+
+      // Categorized counts
+      const type = cert.certType || "Other";
+      categorized[type] = (categorized[type] || 0) + 1;
+    });
+
+    return { ...counts, categorized };
+  }, [certificates]);
+
+  const handleUpload = async (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string | null) => {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
@@ -707,22 +889,26 @@ export default function CertificatesPage() {
         const base64Content = result.includes(',') ? result.split(',')[1] : "";
 
         const today = new Date();
-        const expiry = new Date(expiryDate);
-        const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
         let status = "VALID";
-        if (daysUntilExpiry < 0) {
-          status = "EXPIRED";
-        } else if (daysUntilExpiry <= 90) {
-          status = "EXPIRING";
+        let daysUntilExpiry = Infinity;
+
+        if (expiryDate) {
+          const expiry = new Date(expiryDate);
+          daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysUntilExpiry < 0) {
+            status = "EXPIRED";
+          } else if (daysUntilExpiry <= 90) {
+            status = "EXPIRING";
+          }
         }
 
         const newCertData = {
           cert: base64Content,
           certType: certType,
           issuedBy: issuedBy,
-          status: status,
-          expiry: new Date(expiryDate).toISOString(),
+          approved: false,
+          expiry: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
           certName: certName,
           issueDate: new Date(issueDate).toISOString(),
           uploadDate: new Date().toISOString(),
@@ -775,25 +961,76 @@ export default function CertificatesPage() {
     }
   };
 
-  const handleDownload = (cert: Certificate) => {
-    if (cert.fileUrl) {
+  const fetchCertificateContent = async (cert: Certificate) => {
+    if (cert.fileUrl) return cert; // Already loaded
+
+    try {
+      const fullCert = await api.getCertificate(cert.id);
+      if (fullCert.cert) {
+        const mimeType = getMimeType(fullCert.cert);
+        const blob = b64toBlob(fullCert.cert, mimeType);
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const updatedCert = { ...cert, fileUrl: url, fileBlob: fullCert.cert };
+          setCertificates(prev => prev.map(c => c.id === cert.id ? updatedCert : c));
+          return updatedCert;
+        }
+      }
+    } catch (e) {
+      toast.error("Failed to load certificate file");
+      console.error(e);
+    }
+    return cert;
+  };
+
+  const handleDownload = async (cert: Certificate) => {
+    let targetCert = cert;
+    if (!targetCert.fileUrl) {
+      toast.loading("Downloading file...");
+      targetCert = await fetchCertificateContent(cert);
+      toast.dismiss();
+    }
+
+    if (targetCert.fileUrl) {
       const link = document.createElement("a");
-      link.href = cert.fileUrl;
-      link.download = cert.fileName || "certificate.pdf";
+      link.href = targetCert.fileUrl;
+      link.download = targetCert.fileName || "certificate";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(`Downloading ${cert.name}...`);
+      toast.success(`Downloading ${targetCert.name}...`);
     } else {
-      toast.warning(`${cert.name} is a mock file (no real download).`);
+      toast.error("File not available");
     }
+  };
+
+  const openViewer = async (cert: Certificate) => {
+    setSelectedCert(cert);
+    if (!cert.fileUrl) {
+      toast.loading("Loading preview...");
+      const loaded = await fetchCertificateContent(cert);
+      setSelectedCert(loaded);
+      toast.dismiss();
+    }
+    setShowViewer(true);
+  };
+
+  const openEditor = async (cert: Certificate) => {
+    setSelectedCert(cert);
+    if (!cert.fileUrl) {
+      toast.loading("Loading editor...");
+      const loaded = await fetchCertificateContent(cert);
+      setSelectedCert(loaded);
+      toast.dismiss();
+    }
+    setShowEditor(true);
   };
 
   return (
     <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white pb-32 transition-colors duration-300">
-      <Toaster position="top-center" richColors />
 
-      <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
+      <main className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
 
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
@@ -817,65 +1054,97 @@ export default function CertificatesPage() {
         </header>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
-          <div className="relative overflow-hidden rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
-            <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative z-10 flex-1 flex flex-col justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500">
-                  <FileText size={18} strokeWidth={1.5} />
+          <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-4 sm:p-5 flex flex-col relative overflow-hidden shadow-sm h-[220px]">
+            <button onClick={() => activeCategory && setActiveCategory(null)} className={cn("absolute top-4 sm:top-5 left-4 sm:left-5 flex items-center gap-2 transition-all z-10", activeCategory ? "cursor-pointer hover:opacity-70" : "pointer-events-none")}>
+              <div className="p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-md text-zinc-500">
+                {activeCategory ? <FilterX size={14} className="text-orange-500" /> : <MoreHorizontal size={14} />}
+              </div>
+              <span className={cn("text-[10px] font-bold uppercase tracking-widest transition-colors", activeCategory ? "text-orange-500" : "text-zinc-400")}>
+                {activeCategory ? "Clear Filter" : "Distribution"}
+              </span>
+            </button>
+            <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-4 pt-10 pb-1">
+              {CERTIFICATE_TYPES_CONFIG.slice(0, 3).map((cat) => {
+                const isSelected = activeCategory === cat.id;
+                const count = stats.categorized[cat.id] || 0;
+
+                const activeBg = cat.color === 'emerald' ? "bg-emerald-500 text-white" :
+                  cat.color === 'orange' ? "bg-orange-500 text-white" :
+                    cat.color === 'blue' ? "bg-blue-500 text-white" :
+                      "bg-purple-500 text-white";
+
+                const activeText = cat.color === 'emerald' ? "text-emerald-500" :
+                  cat.color === 'orange' ? "text-orange-500" :
+                    cat.color === 'blue' ? "text-blue-500" :
+                      "text-purple-500";
+
+                return (
+                  <button key={cat.id} onClick={() => setActiveCategory(prev => prev === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
+                    <div className={cn("p-1.5 rounded-xl transition-all duration-300 shadow-sm", isSelected ? cn(activeBg, "scale-110 shadow-lg") : "bg-zinc-50 dark:bg-zinc-900 text-zinc-300 dark:text-zinc-600 hover:scale-105")}>
+                      <cat.icon size={16} strokeWidth={2.5} className="sm:w-[20px] sm:h-[20px]" />
+                    </div>
+                    <div className="text-center">
+                      <span className={cn("block text-sm font-bold leading-none", isSelected ? activeText : "text-zinc-900 dark:text-white")}>{count}</span>
+                      <span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors truncate max-w-[64px]", isSelected ? activeText : "text-zinc-400")}>{cat.label}</span>
+                    </div>
+                  </button>
+                );
+              })}
+
+              <button onClick={() => setIsTypeModalOpen(true)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
+                <div className="p-1.5 rounded-xl transition-all duration-300 shadow-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-400 hover:scale-105 hover:border-orange-500 hover:text-orange-500">
+                  <LayoutGrid size={16} strokeWidth={2.5} className="sm:w-[20px] sm:h-[20px]" />
                 </div>
-                <span className="font-mono text-[10px] uppercase text-zinc-500 font-bold tracking-widest">Total</span>
-              </div>
-              <div>
-                <h2 className="text-5xl font-light tracking-tighter text-zinc-900 dark:text-white leading-none">{stats.total}</h2>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-2">Certificates on file</p>
-              </div>
+                <div className="text-center">
+                  <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-orange-500 transition-colors">View All</span>
+                </div>
+              </button>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[220px]">
             <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-emerald-100/30 to-transparent dark:from-emerald-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative z-10 flex-1 flex flex-col justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 size={18} strokeWidth={2} />
+                  <CheckCircle2 size={24} strokeWidth={2} />
                 </div>
                 <span className="font-mono text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold tracking-widest">Valid</span>
               </div>
               <div>
-                <h2 className="text-5xl font-light tracking-tighter text-emerald-600 dark:text-emerald-400 leading-none">{stats.VALID}</h2>
+                <h2 className="text-6xl font-light tracking-tighter text-emerald-600 dark:text-emerald-400 leading-none">{stats.VALID}</h2>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/60 dark:text-emerald-300/60 mt-2">Compliant & Current</p>
               </div>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-orange-200/50 dark:border-orange-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-orange-200/50 dark:border-orange-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[220px]">
             <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-orange-100/30 to-transparent dark:from-orange-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative z-10 flex-1 flex flex-col justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
-                  <Clock size={18} strokeWidth={2} />
+                  <Clock size={24} strokeWidth={2} />
                 </div>
                 <span className="font-mono text-[10px] uppercase text-orange-600 dark:text-orange-400 font-bold tracking-widest">Expiring</span>
               </div>
               <div>
-                <h2 className="text-5xl font-light tracking-tighter text-orange-600 dark:text-orange-400 leading-none">{stats.EXPIRING}</h2>
+                <h2 className="text-6xl font-light tracking-tighter text-orange-600 dark:text-orange-400 leading-none">{stats.EXPIRING}</h2>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-orange-700/60 dark:text-orange-300/60 mt-2">Within 90 days</p>
               </div>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-red-200/50 dark:border-red-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[160px]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-red-200/50 dark:border-red-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[220px]">
             <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-red-100/30 to-transparent dark:from-red-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative z-10 flex-1 flex flex-col justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400">
-                  <AlertTriangle size={18} strokeWidth={2} />
+                  <AlertTriangle size={24} strokeWidth={2} />
                 </div>
                 <span className="font-mono text-[10px] uppercase text-red-600 dark:text-red-400 font-bold tracking-widest">Expired</span>
               </div>
               <div>
-                <h2 className="text-5xl font-light tracking-tighter text-red-600 dark:text-red-400 leading-none">{stats.EXPIRED}</h2>
+                <h2 className="text-6xl font-light tracking-tighter text-red-600 dark:text-red-400 leading-none">{stats.EXPIRED}</h2>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-red-700/60 dark:text-red-300/60 mt-2">Renewal required</p>
               </div>
             </div>
@@ -936,7 +1205,7 @@ export default function CertificatesPage() {
                   )} />
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 gap-4 sm:gap-6 w-full pl-6 sm:pl-8">
-                    
+
                     <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div className={cn(
                         "h-12 w-12 flex-shrink-0 flex items-center justify-center rounded-xl border transition-all shadow-sm",
@@ -953,6 +1222,8 @@ export default function CertificatesPage() {
                           {cert.name}
                         </h3>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono flex items-center gap-1.5 truncate">
+                          <span className="font-bold text-orange-600 dark:text-orange-400 truncate">{cert.certType}</span>
+                          <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
                           <span className="truncate">{cert.issuer}</span>
                           <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
                           <span className="shrink-0">ID: {1000 + cert.id}</span>
@@ -961,7 +1232,7 @@ export default function CertificatesPage() {
                     </div>
 
                     <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end w-full sm:w-auto gap-4 sm:gap-6 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800/50 pt-4 sm:pt-0 shrink-0">
-                      
+
                       <div className="flex flex-col sm:items-end min-w-[110px]">
                         <span className={cn(
                           "text-[9px] font-bold uppercase tracking-wide mb-0.5",
@@ -985,7 +1256,7 @@ export default function CertificatesPage() {
                       </div>
 
                       <div className="sm:hidden block">
-                         <StatusBadge status={cert.status} />
+                        <StatusBadge status={cert.status} />
                       </div>
 
                       <div className="flex items-center gap-1 sm:border-l sm:border-zinc-200 sm:dark:border-zinc-800 sm:pl-6 w-full sm:w-auto justify-end sm:justify-center mt-2 sm:mt-0">
@@ -993,7 +1264,7 @@ export default function CertificatesPage() {
                           <StatusBadge status={cert.status} />
                         </div>
                         <button
-                          onClick={() => { setSelectedCert(cert); setShowViewer(true); }}
+                          onClick={() => openViewer(cert)}
                           className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                           title="View"
                         >
@@ -1007,7 +1278,7 @@ export default function CertificatesPage() {
                           <Download size={16} />
                         </button>
                         <button
-                          onClick={() => { setSelectedCert(cert); setShowEditor(true); }}
+                          onClick={() => openEditor(cert)}
                           className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                           title="Edit"
                         >
@@ -1047,7 +1318,7 @@ export default function CertificatesPage() {
             PDF, JPG, PNG Supported
           </p>
         </div>
-      </main>
+      </main >
 
       <AnimatePresence>
         {isUploadOpen && (
@@ -1091,7 +1362,19 @@ export default function CertificatesPage() {
           />
         )}
       </AnimatePresence>
-      <Toaster position="top-right" theme="system" richColors />
-    </div>
+
+      <AnimatePresence>
+        {isTypeModalOpen && (
+          <CertificateTypeModal
+            isOpen={isTypeModalOpen}
+            onClose={() => setIsTypeModalOpen(false)}
+            onSelect={(id) => { setActiveCategory(id); setIsTypeModalOpen(false); }}
+            activeCategory={activeCategory}
+            counts={stats.categorized}
+          />
+        )}
+      </AnimatePresence>
+
+    </div >
   );
 }

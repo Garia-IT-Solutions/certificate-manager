@@ -46,9 +46,14 @@ export function AppSidebar() {
           setUserName(fullName.trim() || "Cpt. User");
           setAvatarUrl(data.avatar_url || "");
         }
-      } catch (e) {}
+      } catch (e) { }
     }
+
     fetchProfile();
+
+    const handleProfileUpdate = () => fetchProfile();
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
 
   return (
@@ -61,9 +66,8 @@ export function AppSidebar() {
       )}
 
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r transition-transform duration-300 ease-in-out md:sticky md:top-0 md:translate-x-0 shrink-0",
-        openMobile ? "translate-x-0" : "-translate-x-full",
-        "bg-[#09090b] border-zinc-800 text-zinc-50" 
+        "fixed inset-y-0 left-0 z-50 flex flex-col w-64 border-r transition-transform duration-300 ease-in-out md:translate-x-0 shrink-0 overflow-y-auto custom-scrollbar bg-[#09090b] border-zinc-800 text-zinc-50",
+        openMobile ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center gap-3 p-8">
           <div className="flex h-8 w-8 items-center justify-center bg-[#FF3300] text-white rounded-md shadow-sm">
@@ -71,14 +75,14 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="font-mono text-sm font-bold uppercase tracking-wider text-white">Marine</span>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">OS v2.4</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">OS v1.0</span>
           </div>
         </div>
 
         <nav className="flex-1 space-y-2 px-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            
+
             return (
               <Link
                 key={item.href}
@@ -111,8 +115,8 @@ export function AppSidebar() {
           })}
         </nav>
 
-        <Link 
-          href="/dashboard/profile" 
+        <Link
+          href="/dashboard/profile"
           onClick={() => {
             if (setOpenMobile) setOpenMobile(false);
           }}

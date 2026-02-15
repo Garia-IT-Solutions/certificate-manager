@@ -492,7 +492,7 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                                             onChange={(e) => onUpdate({ ...data, miscellaneousRemarks: e.target.value })}
                                             rows={4}
                                             className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black text-xs font-medium outline-none transition-all focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 resize-none text-zinc-900 dark:text-zinc-100"
-                                            placeholder="Enter any additional remarks..."
+                                            placeholder=""
                                         />
                                     </div>
                                 </div>

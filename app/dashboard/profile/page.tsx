@@ -19,7 +19,7 @@ import {
     Ruler,
     Plus
 } from "lucide-react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -42,6 +42,8 @@ interface Profile {
     physical_description: string;
     avatar_url?: string;
     skills: string[];
+    department?: string;
+    rank?: string;
 }
 
 interface Address {
@@ -90,7 +92,9 @@ const MOCK_PROFILE: Profile = {
     next_of_kin: '{"name":"","relationship":"","address":"","contactNo":""}',
     physical_description: '{"hairColor":"","eyeColor":"","height":"","weight":"","boilerSuitSize":"","shoeSize":""}',
     skills: ["Safety Management", "Propulsion Systems"],
-    avatar_url: ""
+    avatar_url: "",
+    department: "ENGINE",
+    rank: "Chief Marine Engineer"
 };
 
 export default function ProfilePage() {
@@ -193,6 +197,7 @@ export default function ProfilePage() {
             loadProfileData(updated);
             setIsEditing(false);
             toast.success("Profile updated successfully!");
+            window.dispatchEvent(new Event("profile-updated"));
         } catch (e) {
             toast.error("Backend unreachable, saved locally until refresh.");
             setIsEditing(false);
@@ -224,7 +229,7 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white pb-32 transition-colors duration-300">
-            <Toaster position="top-center" richColors />
+
 
             <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
 
@@ -287,6 +292,10 @@ export default function ProfilePage() {
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
+                                                    if (file.size > 5 * 1024 * 1024) {
+                                                        toast.error("Image too large. Please upload an image under 5MB.");
+                                                        return;
+                                                    }
                                                     const reader = new FileReader();
                                                     reader.onloadend = () => {
                                                         const base64String = reader.result as string;
@@ -308,44 +317,71 @@ export default function ProfilePage() {
 
                             <div className="relative z-10 w-full space-y-4">
                                 {isEditing ? (
-                                    <div className="space-y-3">
-                                        <input
-                                            name="first_name"
-                                            value={formData.first_name}
-                                            onChange={handleInputChange}
-                                            placeholder="First Name"
-                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
-                                        />
-                                        <input
-                                            name="middle_name"
-                                            value={formData.middle_name}
-                                            onChange={handleInputChange}
-                                            placeholder="Middle Name"
-                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
-                                        />
-                                        <input
-                                            name="last_name"
-                                            value={formData.last_name}
-                                            onChange={handleInputChange}
-                                            placeholder="Last Name"
-                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
-                                        />
-                                        <input
-                                            name="job_title"
-                                            value={formData.job_title}
-                                            onChange={handleInputChange}
-                                            placeholder="Job Title"
-                                            className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-mono font-bold focus:border-orange-500 outline-none mt-4 transition-colors"
-                                        />
-                                    </div>
+                                    <>
+                                        <div className="space-y-3">
+                                            <input
+                                                name="first_name"
+                                                value={formData.first_name}
+                                                onChange={handleInputChange}
+                                                placeholder="First Name"
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
+                                            />
+                                            <input
+                                                name="middle_name"
+                                                value={formData.middle_name}
+                                                onChange={handleInputChange}
+                                                placeholder="Middle Name"
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
+                                            />
+                                            <input
+                                                name="last_name"
+                                                value={formData.last_name}
+                                                onChange={handleInputChange}
+                                                placeholder="Last Name"
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
+                                            />
+                                            <input
+                                                name="job_title"
+                                                value={formData.job_title}
+                                                onChange={handleInputChange}
+                                                placeholder="Job Title"
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-mono font-bold focus:border-orange-500 outline-none mt-4 transition-colors"
+                                            />
+                                        </div>
+                                        <div className="mt-4 grid grid-cols-2 gap-3">
+                                            <select
+                                                name="department"
+                                                value={formData.department || "ENGINE"}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
+                                            >
+                                                <option value="ENGINE">ENGINE</option>
+                                                <option value="DECK">DECK</option>
+                                            </select>
+                                            <input
+                                                name="rank"
+                                                value={formData.rank || ""}
+                                                onChange={handleInputChange}
+                                                placeholder="Rank"
+                                                className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
+                                            />
+                                        </div>
+                                    </>
                                 ) : (
                                     <>
                                         <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-1 break-words">
                                             {profile.first_name} {profile.middle_name} {profile.last_name}
                                         </h2>
-                                        <p className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-6 break-words">
-                                            {profile.job_title}
-                                        </p>
+                                        <div className="flex flex-col gap-1 items-center mb-6">
+                                            <p className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider break-words">
+                                                {profile.rank || profile.job_title}
+                                            </p>
+                                            {profile.department && (
+                                                <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-widest border border-zinc-200 dark:border-zinc-700">
+                                                    {profile.department} Department
+                                                </span>
+                                            )}
+                                        </div>
                                     </>
                                 )}
 

@@ -26,9 +26,20 @@ def init_db():
             certName TEXT,
             issueDate TEXT,
             uploadDate TEXT,
-            hidden BOOLEAN
+            hidden BOOLEAN,
+            user_id INTEGER
         )
     ''')
+
+    # Check for user_id in certificates and migrate
+    cursor.execute("PRAGMA table_info(certificates)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'user_id' not in columns:
+        try:
+            cursor.execute("ALTER TABLE certificates ADD COLUMN user_id INTEGER")
+            print("Migrated: Added column user_id to certificates")
+        except Exception as e:
+            print(f"Migration error for certificates user_id: {e}")
 
     # Create Profiles Table
     cursor.execute('''
@@ -52,7 +63,9 @@ def init_db():
             permanent_address TEXT DEFAULT '{}',
             present_address TEXT DEFAULT '{}',
             next_of_kin TEXT DEFAULT '{}',
-            physical_description TEXT DEFAULT '{}'
+            physical_description TEXT DEFAULT '{}',
+            rank TEXT DEFAULT '',
+            department TEXT DEFAULT ''
         )
     ''')
     
@@ -71,7 +84,9 @@ def init_db():
         'permanent_address': "TEXT DEFAULT '{}'",
         'present_address': "TEXT DEFAULT '{}'",
         'next_of_kin': "TEXT DEFAULT '{}'",
-        'physical_description': "TEXT DEFAULT '{}'"
+        'physical_description': "TEXT DEFAULT '{}'",
+        'rank': "TEXT DEFAULT ''",
+        'department': "TEXT DEFAULT ''"
     }
 
     for col_name, col_def in new_columns.items():
@@ -92,6 +107,7 @@ def init_db():
             vesselName TEXT,
             type TEXT,
             company TEXT,
+            dept TEXT DEFAULT 'ENGINE',
             mainEngine TEXT,
             bhp REAL,
             torque REAL,
@@ -103,6 +119,16 @@ def init_db():
             user_id INTEGER
         )
     ''')
+
+    # Migrate sea_time_logs table - add dept column if missing
+    cursor.execute("PRAGMA table_info(sea_time_logs)")
+    stl_columns = {col[1] for col in cursor.fetchall()}
+    if 'dept' not in stl_columns:
+        try:
+            cursor.execute("ALTER TABLE sea_time_logs ADD COLUMN dept TEXT DEFAULT 'ENGINE'")
+            print("Migrated: Added column dept to sea_time_logs")
+        except Exception as e:
+            print(f"Migration error for dept: {e}")
     
     # Check if user_id column exists in sea_time_logs (migration)
     cursor.execute("PRAGMA table_info(sea_time_logs)")
@@ -127,9 +153,20 @@ def init_db():
             docName TEXT,
             issueDate TEXT,
             uploadDate TEXT,
-            hidden BOOLEAN
+            hidden BOOLEAN,
+            user_id INTEGER
         )
     ''')
+
+    # Check for user_id in documents and migrate
+    cursor.execute("PRAGMA table_info(documents)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'user_id' not in columns:
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN user_id INTEGER")
+            print("Migrated: Added column user_id to documents")
+        except Exception as e:
+            print(f"Migration error for documents user_id: {e}")
 
     # Seed Default Profile if empty
     cursor.execute('SELECT count(*) FROM profiles')

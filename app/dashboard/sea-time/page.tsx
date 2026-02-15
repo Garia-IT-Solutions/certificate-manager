@@ -11,13 +11,9 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TiltCard } from "@/components/TiltCard";
 import { cn } from "@/lib/utils";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 
-const USER_PROFILE = {
-   name: "Aditya R.",
-   department: "ENGINE" as "ENGINE" | "DECK",
-   id: "IND-8842"
-};
+// User profile is fetched dynamically from the API
 
 const VESSEL_TYPES = [
    "Oil Tanker", "Gas Tanker", "Product Tanker", "Oil/Chem Tanker", "Chemical Tanker", "Bitumen Tanker",
@@ -37,10 +33,10 @@ const RANKS = {
 };
 
 const FLAGS = [
-    "Panama", "Liberia", "Marshall Islands", "Singapore", "Malta", "Bahamas", "China", "Greece", "Japan", 
-    "United States", "Cyprus", "Norway", "United Kingdom", "Indonesia", "Germany", "South Korea", 
-    "Denmark", "Italy", "India", "Philippines", "Vietnam", "Saudi Arabia", "Turkey", "Russia", "Netherlands",
-    "Malaysia", "France", "Spain", "Belgium", "Sweden", "Brazil", "Canada", "Australia", "Thailand"
+   "Panama", "Liberia", "Marshall Islands", "Singapore", "Malta", "Bahamas", "China", "Greece", "Japan",
+   "United States", "Cyprus", "Norway", "United Kingdom", "Indonesia", "Germany", "South Korea",
+   "Denmark", "Italy", "India", "Philippines", "Vietnam", "Saudi Arabia", "Turkey", "Russia", "Netherlands",
+   "Malaysia", "France", "Spain", "Belgium", "Sweden", "Brazil", "Canada", "Australia", "Thailand"
 ].sort();
 
 interface SeaTimeEntry {
@@ -60,123 +56,135 @@ interface SeaTimeEntry {
    signOn: string;
    signOff: string;
    uploadDate: string;
-   duration: { months: number; days: number };
+   duration: { years: number; months: number; days: number };
 }
 
 const calculateDuration = (start: string, end: string) => {
-   if (!start || !end) return { months: 0, days: 0 };
+   if (!start || !end) return { years: 0, months: 0, days: 0 };
    const startDate = new Date(start);
    const endDate = new Date(end);
-   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return { months: 0, days: 0 };
+   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return { years: 0, months: 0, days: 0 };
    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-   return { months: Math.floor(diffDays / 30), days: diffDays % 30 };
+   const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+   const years = Math.floor(totalDays / 365);
+   const remainingDaysAfterYears = totalDays % 365;
+   const months = Math.floor(remainingDaysAfterYears / 30);
+   const days = remainingDaysAfterYears % 30;
+   return { years, months, days };
 };
 
-function SearchableDropdown({ 
-    options, 
-    value, 
-    onChange, 
-    placeholder, 
-    className,
-    allowCustom = false 
-}: { 
-    options: string[], 
-    value: string, 
-    onChange: (val: string) => void, 
-    placeholder?: string,
-    className?: string,
-    allowCustom?: boolean
+const formatDuration = (duration: { years: number; months: number; days: number }) => {
+   const parts: string[] = [];
+   if (duration.years > 0) parts.push(`${duration.years}yr${duration.years > 1 ? 's' : ''}`);
+   if (duration.months > 0) parts.push(`${duration.months}m`);
+   if (duration.days > 0 || parts.length === 0) parts.push(`${duration.days}d`);
+   return parts.join(' ');
+};
+
+function SearchableDropdown({
+   options,
+   value,
+   onChange,
+   placeholder,
+   className,
+   allowCustom = false
+}: {
+   options: string[],
+   value: string,
+   onChange: (val: string) => void,
+   placeholder?: string,
+   className?: string,
+   allowCustom?: boolean
 }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
-    const wrapperRef = useRef<HTMLDivElement>(null);
+   const [isOpen, setIsOpen] = useState(false);
+   const [searchTerm, setSearchTerm] = useState("");
+   const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const filteredOptions = useMemo(() => {
-        return options.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [options, searchTerm]);
+   const filteredOptions = useMemo(() => {
+      return options.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
+   }, [options, searchTerm]);
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-                if (!allowCustom && !options.includes(searchTerm) && searchTerm !== "") {
-                    setSearchTerm(value); 
-                }
+   useEffect(() => {
+      function handleClickOutside(event: MouseEvent) {
+         if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+            setIsOpen(false);
+            if (!allowCustom && !options.includes(searchTerm) && searchTerm !== "") {
+               setSearchTerm(value);
             }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef, allowCustom, options, searchTerm, value]);
+         }
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+   }, [wrapperRef, allowCustom, options, searchTerm, value]);
 
-    useEffect(() => {
-        setSearchTerm(value);
-    }, [value]);
+   useEffect(() => {
+      setSearchTerm(value);
+   }, [value]);
 
-    const handleSelect = (option: string) => {
-        onChange(option);
-        setSearchTerm(option);
-        setIsOpen(false);
-    };
+   const handleSelect = (option: string) => {
+      onChange(option);
+      setSearchTerm(option);
+      setIsOpen(false);
+   };
 
-    return (
-        <div ref={wrapperRef} className={cn("relative", className)}>
-            <div 
-                onClick={() => setIsOpen(!isOpen)}
-                className={cn(
-                    "flex items-center justify-between w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium cursor-text transition-all",
-                    isOpen ? "border-[#FF3300] ring-1 ring-[#FF3300]/20" : "hover:border-zinc-300 dark:hover:border-zinc-700"
-                )}
-            >
-                <input 
-                    type="text"
-                    className="bg-transparent outline-none w-full text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                    placeholder={placeholder}
-                    value={searchTerm}
-                    onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        if (!isOpen) setIsOpen(true);
-                        if (allowCustom) onChange(e.target.value);
-                    }}
-                />
-                <ChevronDown size={14} className={cn("text-zinc-400 transition-transform", isOpen && "rotate-180 text-[#FF3300]")} />
-            </div>
+   return (
+      <div ref={wrapperRef} className={cn("relative", className)}>
+         <div
+            onClick={() => setIsOpen(!isOpen)}
+            className={cn(
+               "flex items-center justify-between w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium cursor-text transition-all",
+               isOpen ? "border-[#FF3300] ring-1 ring-[#FF3300]/20" : "hover:border-zinc-300 dark:hover:border-zinc-700"
+            )}
+         >
+            <input
+               type="text"
+               className="bg-transparent outline-none w-full text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+               placeholder={placeholder}
+               value={searchTerm}
+               onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (!isOpen) setIsOpen(true);
+                  if (allowCustom) onChange(e.target.value);
+               }}
+            />
+            <ChevronDown size={14} className={cn("text-zinc-400 transition-transform", isOpen && "rotate-180 text-[#FF3300]")} />
+         </div>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 5, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 5, scale: 0.98 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className="absolute z-50 w-full mt-1 bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
-                    >
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map((opt) => (
-                                <button
-                                    key={opt}
-                                    onClick={() => handleSelect(opt)}
-                                    className={cn(
-                                        "w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center justify-between group",
-                                        value === opt 
-                                            ? "bg-[#FF3300]/10 text-[#FF3300]" 
-                                            : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                                    )}
-                                >
-                                    <span>{opt}</span>
-                                    {value === opt && <Check size={12} className="text-[#FF3300]" />}
-                                </button>
-                            ))
-                        ) : (
-                            <div className="px-3 py-3 text-[10px] text-zinc-400 text-center italic">
-                                {allowCustom ? "Custom value active" : "No matches found"}
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+         <AnimatePresence>
+            {isOpen && (
+               <motion.div
+                  initial={{ opacity: 0, y: 5, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="absolute z-50 w-full mt-1 bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
+               >
+                  {filteredOptions.length > 0 ? (
+                     filteredOptions.map((opt) => (
+                        <button
+                           key={opt}
+                           onClick={() => handleSelect(opt)}
+                           className={cn(
+                              "w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center justify-between group",
+                              value === opt
+                                 ? "bg-[#FF3300]/10 text-[#FF3300]"
+                                 : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                           )}
+                        >
+                           <span>{opt}</span>
+                           {value === opt && <Check size={12} className="text-[#FF3300]" />}
+                        </button>
+                     ))
+                  ) : (
+                     <div className="px-3 py-3 text-[10px] text-zinc-400 text-center italic">
+                        {allowCustom ? "Custom value active" : "No matches found"}
+                     </div>
+                  )}
+               </motion.div>
+            )}
+         </AnimatePresence>
+      </div>
+   );
 }
 
 function DeleteConfirmModal({ isOpen, onClose, onConfirm }: any) {
@@ -200,10 +208,10 @@ function DeleteConfirmModal({ isOpen, onClose, onConfirm }: any) {
    );
 }
 
-function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
+function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }: any) {
    const [formData, setFormData] = useState({
       imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "",
-      dept: USER_PROFILE.department,
+      dept: userDepartment || "ENGINE",
       rank: "", mainEngine: "", bhp: "", torque: "", dwt: "", signOn: "", signOff: ""
    });
 
@@ -223,7 +231,7 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
             signOn: initialData.signOn, signOff: initialData.signOff
          });
       } else {
-         setFormData({ imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "", dept: USER_PROFILE.department, rank: "", mainEngine: "", bhp: "", torque: "", dwt: "", signOn: "", signOff: "" });
+         setFormData({ imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "", dept: userDepartment || "ENGINE", rank: "", mainEngine: "", bhp: "", torque: "", dwt: "", signOn: "", signOff: "" });
       }
    }, [initialData, isOpen]);
 
@@ -252,11 +260,11 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
                         <div className="grid grid-cols-2 gap-3">
                            <div>
                               <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Type</label>
-                              <SearchableDropdown 
-                                 options={VESSEL_TYPES} 
-                                 value={formData.type} 
-                                 onChange={(val) => setFormData({ ...formData, type: val })} 
-                                 placeholder="Select Type" 
+                              <SearchableDropdown
+                                 options={VESSEL_TYPES}
+                                 value={formData.type}
+                                 onChange={(val) => setFormData({ ...formData, type: val })}
+                                 placeholder="Select Type"
                               />
                            </div>
                            <div>
@@ -266,57 +274,62 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                            <div>
-                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">IMO</label>
-                                <input type="text" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.imo} onChange={(e) => setFormData({ ...formData, imo: e.target.value })} />
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">IMO</label>
+                              <input type="text" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.imo} onChange={(e) => setFormData({ ...formData, imo: e.target.value })} />
                            </div>
                            <div>
-                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Official No.</label>
-                                <input type="text" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.offNo} onChange={(e) => setFormData({ ...formData, offNo: e.target.value })} />
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Official No.</label>
+                              <input type="text" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.offNo} onChange={(e) => setFormData({ ...formData, offNo: e.target.value })} />
                            </div>
                            <div>
-                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Flag</label>
-                                <SearchableDropdown 
-                                    options={FLAGS} 
-                                    value={formData.flag} 
-                                    onChange={(val) => setFormData({ ...formData, flag: val })} 
-                                    placeholder="Search Flag"
-                                    allowCustom={true} 
-                                />
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Flag</label>
+                              <SearchableDropdown
+                                 options={FLAGS}
+                                 value={formData.flag}
+                                 onChange={(val) => setFormData({ ...formData, flag: val })}
+                                 placeholder="Search Flag"
+                                 allowCustom={true}
+                              />
                            </div>
                         </div>
                      </div>
-                     <div className="space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-                        <div>
-                           <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Main Engine</label>
-                           <input className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.mainEngine} onChange={(e) => setFormData({ ...formData, mainEngine: e.target.value })} />
+                     {formData.dept === "ENGINE" && (
+                        <div className="space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                           <div>
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Main Engine</label>
+                              <input className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.mainEngine} onChange={(e) => setFormData({ ...formData, mainEngine: e.target.value })} />
+                           </div>
+                           <div className="grid grid-cols-2 gap-2">
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">BHP</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp} onChange={(e) => setFormData({ ...formData, bhp: e.target.value })} /></div>
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Torque</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.torque} onChange={(e) => setFormData({ ...formData, torque: e.target.value })} /></div>
+                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">BHP</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp} onChange={(e) => setFormData({ ...formData, bhp: e.target.value })} /></div>
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Torque</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.torque} onChange={(e) => setFormData({ ...formData, torque: e.target.value })} /></div>
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">DWT</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.dwt} onChange={(e) => setFormData({ ...formData, dwt: e.target.value })} /></div>
-                        </div>
+                     )}
+                     <div className={formData.dept === "ENGINE" ? "" : "pt-3 border-t border-zinc-200 dark:border-zinc-800"}>
+                        <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">DWT</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.dwt} onChange={(e) => setFormData({ ...formData, dwt: e.target.value })} /></div>
                      </div>
                   </div>
 
-                  <div className="space-y-4">
-                     <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 h-full flex flex-col">
+                  <div className="h-full flex flex-col justify-center">
+                     <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-6">
                         <div>
                            <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Rank</label>
-                           <SearchableDropdown 
-                                options={RANKS[formData.dept]} 
-                                value={formData.rank} 
-                                onChange={(val) => setFormData({ ...formData, rank: val })} 
-                                placeholder="Select Rank"
-                                className="bg-white dark:bg-black" 
+                           <SearchableDropdown
+                              options={(RANKS as Record<string, string[]>)[formData.dept] || RANKS.ENGINE}
+                              value={formData.rank}
+                              onChange={(val) => setFormData({ ...formData, rank: val })}
+                              placeholder="Select Rank"
+                              className="bg-white dark:bg-black"
                            />
                         </div>
 
-                        <div className="flex-1 my-4 flex flex-col justify-center">
+                        <div className="flex flex-col justify-center">
                            <div className={cn("relative rounded-xl p-4 border flex items-center justify-between overflow-hidden", themeBg)}>
                               <div className="relative z-10 flex items-center w-full justify-between">
                                  <div>
                                     <span className="text-[8px] font-bold uppercase text-zinc-500 tracking-widest block mb-0.5">Time Onboard</span>
                                     <div className="flex items-baseline gap-4">
+                                       {liveDuration.years > 0 && (<><div className="flex flex-col"><span className={cn("text-2xl font-bold tabular-nums tracking-tighter leading-none", themeColor)}>{liveDuration.years}</span><span className="text-[8px] font-bold text-zinc-500 uppercase">Yrs</span></div><div className="w-px h-6 bg-zinc-500/20 self-center" /></>)}
                                        <div className="flex flex-col"><span className={cn("text-2xl font-bold tabular-nums tracking-tighter leading-none", themeColor)}>{liveDuration.months}</span><span className="text-[8px] font-bold text-zinc-500 uppercase">Mos</span></div>
                                        <div className="w-px h-6 bg-zinc-500/20 self-center" />
                                        <div className="flex flex-col"><span className={cn("text-2xl font-bold tabular-nums tracking-tighter leading-none", themeColor)}>{liveDuration.days}</span><span className="text-[8px] font-bold text-zinc-500 uppercase">Days</span></div>
@@ -350,10 +363,23 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData }: any) {
 
 export default function SeaTimePage() {
    const [entries, setEntries] = useState<SeaTimeEntry[]>([]);
+   const [userDepartment, setUserDepartment] = useState<"ENGINE" | "DECK">("ENGINE");
 
    useEffect(() => {
       loadEntries();
+      loadUserProfile();
    }, []);
+
+   const loadUserProfile = async () => {
+      try {
+         const profile = await api.getProfile();
+         if (profile.department) {
+            setUserDepartment(profile.department as "ENGINE" | "DECK");
+         }
+      } catch (error) {
+         console.error("Failed to load profile for department", error);
+      }
+   };
 
    const loadEntries = async () => {
       try {
@@ -366,7 +392,7 @@ export default function SeaTimePage() {
             vesselName: d.vesselName,
             type: d.type,
             company: d.company,
-            dept: d.dept || USER_PROFILE.department,
+            dept: d.dept || userDepartment,
             mainEngine: d.mainEngine,
             bhp: d.bhp,
             torque: d.torque,
@@ -379,10 +405,10 @@ export default function SeaTimePage() {
          }));
          setEntries(mapped);
       } catch (error) {
-         toast.error("Failed to load sea time logs");
+         toast.error("Failed to load sea time logs", { id: "load-sea-time-error" });
       }
    };
-   
+
    const [searchTerm, setSearchTerm] = useState("");
    const [isModalOpen, setIsModalOpen] = useState(false);
    const [editingId, setEditingId] = useState<number | null>(null);
@@ -391,15 +417,17 @@ export default function SeaTimePage() {
    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
    const stats = useMemo(() => {
-      let totalMonths = 0, totalDays = 0, maxBhp = 0, maxTorque = 0;
+      let totalDays = 0, maxBhp = 0, maxTorque = 0;
       entries.forEach(r => {
-         totalMonths += r.duration.months; totalDays += r.duration.days;
+         totalDays += (r.duration.years * 365) + (r.duration.months * 30) + r.duration.days;
          if (r.bhp > maxBhp) maxBhp = r.bhp;
          if (r.torque > maxTorque) maxTorque = r.torque;
       });
-      totalMonths += Math.floor(totalDays / 30);
+      const totalYears = Math.floor(totalDays / 365);
+      const remainingDays = totalDays % 365;
+      const totalMonths = Math.floor(remainingDays / 30);
       return {
-         totalTime: `${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m`,
+         totalTime: `${totalYears}y ${totalMonths}m`,
          vesselCount: entries.length,
          maxPower: (maxBhp / 1000).toFixed(0) + "k",
          maxTorque: (maxTorque / 1000).toFixed(1) + "k"
@@ -433,7 +461,7 @@ export default function SeaTimePage() {
             dwt: Number(data.dwt),
             signOn: data.signOn,
             signOff: data.signOff,
-            uploadDate: new Date().toISOString().split("T")[0] 
+            uploadDate: new Date().toISOString().split("T")[0]
          };
 
          if (editingId) {
@@ -480,11 +508,11 @@ export default function SeaTimePage() {
 
    return (
       <div className="min-h-screen w-full bg-transparent pb-32 transition-colors duration-500">
-         <Toaster position="top-center" theme="dark" richColors />
-         <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
+         <main className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
                <div className="min-w-0 flex-1">
-                  <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">Service<span className="font-bold text-[#FF3300]">Log</span></h1>
+                  <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white pb-1">Service<span className="font-bold text-[#FF3300]">Log</span></h1>
                   <p className="font-mono text-[10px] text-zinc-400 uppercase mt-1 truncate">Official Sea Service Record</p>
                </div>
                <div className="flex items-center gap-3 shrink-0">
@@ -555,7 +583,7 @@ export default function SeaTimePage() {
                      <motion.div key={record.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col md:flex-row md:items-stretch bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all group overflow-hidden w-full">
                         <div className="flex-1 p-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 border-b md:border-b-0 md:border-r border-zinc-100 dark:border-zinc-800 relative w-full">
                            <div className={cn("absolute left-0 top-0 bottom-0 w-1", record.dept === "ENGINE" ? "bg-orange-500" : "bg-blue-500")} />
-                           
+
                            <div className="flex items-center gap-4 min-w-0 flex-1">
                               <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-zinc-400 group-hover:text-[#FF3300] shrink-0 transition-colors">
                                  <Ship size={20} />
@@ -571,7 +599,7 @@ export default function SeaTimePage() {
                                  </div>
                               </div>
                            </div>
-                           
+
                            <div className="flex flex-col justify-center min-w-[140px] shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800/50">
                               <div className="mb-2">
                                  <span className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase border mb-1 inline-block", record.dept === "ENGINE" ? "text-orange-500 border-orange-500/30" : "text-blue-500 border-blue-500/30")}>
@@ -580,22 +608,22 @@ export default function SeaTimePage() {
                                  <h4 className="text-sm font-bold text-zinc-900 dark:text-white leading-tight truncate">{record.rank}</h4>
                               </div>
                               <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 shrink-0">
-                                 <Calendar size={10} className="shrink-0" />
-                                 <span>{record.signOn}</span>
-                                 <span className="text-zinc-300 shrink-0">→</span>
-                                 <span>{record.signOff}</span>
+                                 <Clock size={10} className="shrink-0" />
+                                 <span className={cn("font-bold", record.dept === "ENGINE" ? "text-orange-500" : "text-blue-500")}>{formatDuration(record.duration)}</span>
                               </div>
                            </div>
                         </div>
 
-                        <div className="w-full md:w-48 p-4 flex flex-col justify-center bg-zinc-50/30 dark:bg-zinc-900/10 shrink-0">
-                           <p className="text-[9px] uppercase text-zinc-400 font-bold mb-1">Main Engine</p>
-                           <p className="text-xs font-bold text-zinc-900 dark:text-white truncate mb-2" title={record.mainEngine}>{record.mainEngine}</p>
-                           <div className="grid grid-cols-2 gap-2">
-                              <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k</span></div>
-                              <div><span className="text-[9px] text-zinc-500 block uppercase">Torque</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.torque / 1000).toFixed(1)}k</span></div>
+                        {record.dept === "ENGINE" && (
+                           <div className="w-full md:w-48 p-4 flex flex-col justify-center bg-zinc-50/30 dark:bg-zinc-900/10 shrink-0">
+                              <p className="text-[9px] uppercase text-zinc-400 font-bold mb-1">Main Engine</p>
+                              <p className="text-xs font-bold text-zinc-900 dark:text-white truncate mb-2" title={record.mainEngine}>{record.mainEngine}</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k</span></div>
+                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Torque</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.torque / 1000).toFixed(1)}k</span></div>
+                              </div>
                            </div>
-                        </div>
+                        )}
 
                         <div className="flex flex-row md:flex-col items-center justify-end sm:justify-center gap-2 p-3 bg-zinc-50/50 dark:bg-zinc-900/30 border-t md:border-t-0 md:border-l border-zinc-100 dark:border-zinc-800 shrink-0">
                            <button onClick={() => { setEditingId(record.id); setIsModalOpen(true); }} className="p-2 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2 md:gap-0" title="Edit">
@@ -610,7 +638,7 @@ export default function SeaTimePage() {
                </AnimatePresence>
             </div>
 
-            <AnimatePresence>{isModalOpen && <RecordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSave} initialData={editingId ? entries.find(r => r.id === editingId) : null} />}</AnimatePresence>
+            <AnimatePresence>{isModalOpen && <RecordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSave} initialData={editingId ? entries.find(r => r.id === editingId) : null} userDepartment={userDepartment} />}</AnimatePresence>
             <AnimatePresence>{deleteConfirmId && <DeleteConfirmModal isOpen={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)} onConfirm={confirmDelete} />}</AnimatePresence>
          </main>
       </div>

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
-from backend.models.document import Document, DocumentCreate
+from backend.models.document import Document, DocumentCreate, DocumentSummary
 from backend.controllers import document_controller
 from backend.dependencies import get_current_user
 from backend.models.profile import Profile
@@ -9,9 +9,13 @@ router = APIRouter()
 
 @router.post("/documents", response_model=Document, status_code=status.HTTP_201_CREATED)
 def create_document(doc: DocumentCreate, current_user: Profile = Depends(get_current_user)):
-    return document_controller.create_document(doc, current_user.id)
+    try:
+        return document_controller.create_document(doc, current_user.id)
+    except Exception as e:
+        print(f"Error creating document: {e}")
+        raise e
 
-@router.get("/documents", response_model=List[Document])
+@router.get("/documents", response_model=List[DocumentSummary])
 def read_documents(current_user: Profile = Depends(get_current_user)):
     return document_controller.get_documents(current_user.id)
 

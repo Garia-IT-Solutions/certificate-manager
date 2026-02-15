@@ -9,8 +9,8 @@ def create_seatimelog(log: SeaTimeLogCreate, user_id: int) -> SeaTimeLog:
     cursor.execute(
         '''INSERT INTO sea_time_logs (imo, offNo, flag, vesselName, type, company, dept, mainEngine, bhp, torque, dwt, rank, signOn, signOff, uploadDate, user_id) 
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, log.dept,
-         log.mainEngine, log.bhp, log.torque, log.dwt, log.rank, 
+        (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, log.dept or "ENGINE",
+         log.mainEngine or "", log.bhp or 0, log.torque or 0, log.dwt, log.rank, 
          log.signOn.isoformat(), log.signOff.isoformat(), log.uploadDate.isoformat(), user_id)
     )
     log_id = cursor.lastrowid
@@ -24,6 +24,8 @@ def get_seatimelogs(user_id: int) -> List[SeaTimeLog]:
     cursor.execute('SELECT * FROM sea_time_logs WHERE user_id = ?', (user_id,))
     rows = cursor.fetchall()
     conn.close()
+    if not rows:
+        return []
     return [SeaTimeLog(**dict(row)) for row in rows]
 
 def get_seatimelog_by_id(log_id: int, user_id: int) -> Optional[SeaTimeLog]:

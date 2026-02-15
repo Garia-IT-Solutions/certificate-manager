@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
-from backend.models.certificate import Certificate, CertificateCreate, CertificateUpdate
+from backend.models.certificate import Certificate, CertificateCreate, CertificateUpdate, CertificateSummary
 from backend.controllers import certificate_controller
 from backend.dependencies import get_current_user
 from backend.models.profile import Profile
@@ -9,9 +9,13 @@ router = APIRouter()
 
 @router.post("/certificates", response_model=Certificate, status_code=status.HTTP_201_CREATED)
 def create_certificate(cert: CertificateCreate, current_user: Profile = Depends(get_current_user)):
-    return certificate_controller.create_certificate(cert, current_user.id)
+    try:
+        return certificate_controller.create_certificate(cert, current_user.id)
+    except Exception as e:
+        print(f"Error creating certificate: {e}")
+        raise e
 
-@router.get("/certificates", response_model=List[Certificate])
+@router.get("/certificates", response_model=List[CertificateSummary])
 def read_certificates(current_user: Profile = Depends(get_current_user)):
     return certificate_controller.get_certificates(current_user.id)
 

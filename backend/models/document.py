@@ -1,22 +1,33 @@
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel
+from typing import Optional, List
 from typing import Optional
 
-class DocumentCreate(BaseModel):
+class DocumentBase(BaseModel):
     docID: str
-    doc: bytes
     docType: str # (passport, drivers license (2020))
     category: str # (medical, safety, travel, tech, identity)
     status: str #enum["EXPIRING", "VALID", "INVALID"]
-    expiry: datetime
+    expiry: Optional[date] = None
     docName: str
     issueDate: datetime
     uploadDate: datetime
     hidden: bool
 
+class DocumentCreate(DocumentBase):
+    doc: bytes
+
 class Document(DocumentCreate):
     id: int
     user_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class DocumentSummary(DocumentBase):
+    id: int
+    user_id: Optional[int] = None
+    docSize: Optional[int] = 0
 
     class Config:
         from_attributes = True

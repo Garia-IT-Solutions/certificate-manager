@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SidebarProvider } from "@/components/ui/sidebar"; // <-- 1. Added the import
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner"; // <-- 1. Added the import
 
 // Initialize fonts
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
-const jetbrains = JetBrains_Mono({ 
+const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
@@ -27,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body 
+      <body
         className={`
           ${inter.variable} 
           ${jetbrains.variable} 
@@ -57,6 +58,7 @@ export default function RootLayout({
           {/* <-- 2. Wrapped the entire application in the SidebarProvider */}
           <SidebarProvider>
             {children}
+            <Toaster />
           </SidebarProvider>
         </ThemeProvider>
       </body>

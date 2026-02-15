@@ -241,9 +241,9 @@ export default function ResumePage() {
 
     return (
         <div className="min-h-screen bg-transparent pb-32 transition-colors duration-300">
-            <Toaster position="top-center" richColors />
 
-            <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
+            <main className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
                     <div className="min-w-0 flex-1">
                         <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
@@ -310,9 +310,7 @@ export default function ResumePage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-xl text-[10px] text-blue-700 dark:text-blue-300 font-medium">
-                                <p><strong>Note:</strong> The PDF generation runs entirely in your browser. No data is sent to any server.</p>
-                            </div>
+
                         </div>
                     </div>
                 </div>

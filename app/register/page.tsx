@@ -21,6 +21,19 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [department, setDepartment] = useState<"ENGINE" | "DECK">("ENGINE")
+  const [rank, setRank] = useState("")
+
+  const RANKS: Record<string, string[]> = {
+    ENGINE: [
+      "Chief Engineer", "Second Engineer", "Third Engineer", "Fourth Engineer",
+      "Junior Engineer", "TME", "ETO", "EO", "Tr EO", "Fitter", "Motorman", "Wiper", "Tr Wiper", "Tr Seaman"
+    ],
+    DECK: [
+      "Master", "Chief Officer", "Second Officer", "Third Officer", "Fourth Officer",
+      "Cadet", "Bosun", "Chief Cook", "Pumpman", "Able Seaman", "Ordinary Seaman", "Tr Seaman", "GS"
+    ]
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,8 +49,10 @@ export default function RegisterPage() {
         last_name: lastName,
         email,
         password,
+        department,
+        rank,
       })
-      
+
       // Auto-login after successful registration
       try {
         const loginResponse = await api.login({ email, password })
@@ -154,6 +169,44 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={department === "ENGINE" ? "default" : "outline"}
+                    onClick={() => { setDepartment("ENGINE"); setRank(""); }}
+                    className="w-full"
+                  >
+                    Engine
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={department === "DECK" ? "default" : "outline"}
+                    onClick={() => { setDepartment("DECK"); setRank(""); }}
+                    className="w-full"
+                  >
+                    Deck
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rank">Rank</Label>
+                <select
+                  id="rank"
+                  required
+                  value={rank}
+                  onChange={(e) => setRank(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="" disabled>Select your rank</option>
+                  {RANKS[department].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating Account..." : "Sign Up"}
               </Button>
@@ -164,6 +217,12 @@ export default function RegisterPage() {
                 Already have an account?{" "}
                 <Button variant="link" className="px-0 text-sm" onClick={() => router.push("/login")}>
                   Sign in
+                </Button>
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-4">
+                By registering, you agree to our{" "}
+                <Button variant="link" className="px-0 text-[10px] h-auto p-0 underline" onClick={() => router.push("/terms")}>
+                  Terms & Conditions
                 </Button>
               </p>
             </div>

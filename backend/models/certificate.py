@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel
 from typing import Optional
 
@@ -7,7 +7,7 @@ class CertificateCreate(BaseModel):
     certType: str 
     issuedBy: str
     status: str # enum["EXPIRING", "VALID", "INVALID"]
-    expiry: datetime
+    expiry_date: Optional[date] = None
     certName: str
     issueDate: datetime
     uploadDate: datetime
@@ -18,13 +18,28 @@ class CertificateUpdate(BaseModel):
     certType: Optional[str] = None
     issuedBy: Optional[str] = None
     status: Optional[str] = None
-    expiry: Optional[datetime] = None
+    expiry_date: Optional[date] = None
     certName: Optional[str] = None
     issueDate: Optional[datetime] = None
     hidden: Optional[bool] = None
 
 class Certificate(CertificateCreate):
     id: int
+    user_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class CertificateSummary(BaseModel):
+    id: int
+    certType: str
+    issuedBy: str
+    status: str
+    expiry_date: Optional[date] = None
+    certName: str
+    issueDate: datetime
+    uploadDate: datetime
+    hidden: bool
     user_id: Optional[int] = None
 
     class Config:

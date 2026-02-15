@@ -47,9 +47,10 @@ def create_profile(profile_data: ProfileCreate) -> Profile:
             first_name, last_name, middle_name, nationality, 
             place_of_birth, date_available, email, phone, 
             job_title, bio, skills, password_hash, dob, gender,
-            permanent_address, present_address, next_of_kin, physical_description
+            permanent_address, present_address, next_of_kin, physical_description,
+            rank, department
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         profile_data.first_name, 
         profile_data.last_name,
@@ -68,7 +69,9 @@ def create_profile(profile_data: ProfileCreate) -> Profile:
         profile_data.permanent_address,
         profile_data.present_address,
         profile_data.next_of_kin,
-        profile_data.physical_description
+        profile_data.physical_description,
+        profile_data.rank,
+        profile_data.department
     ))
     
     profile_id = cursor.lastrowid

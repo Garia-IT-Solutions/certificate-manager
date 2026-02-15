@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { api } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import {
   FileText,
   Search,
@@ -26,10 +26,12 @@ import {
   Check,
   ChevronDown,
   Sparkles,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  LayoutGrid
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Switch } from "@/components/ui/switch";
 
 interface Document {
   id: number;
@@ -41,14 +43,130 @@ interface Document {
   status: "VALID" | "EXPIRING" | "EXPIRED";
   fileName: string;
   fileSizeMB: number;
-  fileUrl?: string;
+  fileUrl?: string; // Blob URL
+  fileBlob?: string; // Base64 data if needed
+  docSize?: number; // Size in bytes from backend
 }
 
-const CAT_PATTERNS = {
-  med: /medical|health|fever/i,
-  trv: /passport|visa|book|seaman|travel/i,
-  saf: /safety|stcw|fire|security/i
-};
+const CATEGORY_CONFIG = [
+  { id: 'med', label: 'Medical', icon: Stethoscope, color: 'emerald', pattern: /medical|health|fever/i },
+  { id: 'saf', label: 'Safety', icon: Anchor, color: 'orange', pattern: /safety|stcw|fire|security/i },
+  { id: 'trv', label: 'Travel', icon: Plane, color: 'blue', pattern: /passport|visa|book|seaman|travel/i },
+  { id: 'tec', label: 'Tech', icon: Wrench, color: 'purple', pattern: /technical|engineering|mechanical|repair/i } // Default tech
+];
+
+function CategoryModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+  activeCategory: string | null;
+  counts: Record<string, number>;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredCategories = useMemo(() => {
+    // 1. Get predefined configs that match search
+    const configs = CATEGORY_CONFIG.filter(cat =>
+      cat.label.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // 2. Identify dynamic categories from counts (keys that aren't in configs)
+    const dynamicKeys = Object.keys(counts).filter(k => !CATEGORY_CONFIG.find(c => c.id === k));
+
+    // 3. Filter dynamic categories by search
+    const dynamicMatches = dynamicKeys.filter(k => k.toLowerCase().includes(search.toLowerCase())).map(k => ({
+      id: k,
+      label: k,
+      icon: FileText, // Default icon
+      color: 'zinc', // Default color
+      pattern: null
+    }));
+
+    return [...configs, ...dynamicMatches];
+  }, [search, counts]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[102] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-2xl bg-white dark:bg-zinc-950 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+      >
+        <div className="p-6 pb-4 flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+          <div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">All Categories</h3>
+            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5">Select filter</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search categories..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-12 pl-12 pr-4 bg-zinc-100 dark:bg-zinc-900/50 border border-transparent focus:bg-white dark:focus:bg-zinc-950 border-zinc-200 dark:border-zinc-800 rounded-xl text-sm outline-none focus:border-orange-500 transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {filteredCategories.map((cat) => {
+              const isActive = activeCategory === cat.id;
+              const count = counts[cat.id] || 0;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => onSelect(cat.id)}
+                  className={cn(
+                    "p-4 rounded-xl border flex flex-col gap-3 transition-all cursor-pointer text-left group hover:border-orange-500",
+                    isActive
+                      ? "bg-zinc-50 dark:bg-zinc-900 border-orange-500 ring-1 ring-orange-500"
+                      : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+                  )}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      isActive
+                        ? "bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-500"
+                        : (cat as any).color === 'zinc'
+                          ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-700"
+                          : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-orange-500"
+                    )}>
+                      <cat.icon size={20} />
+                    </div>
+                    <span className={cn(
+                      "text-xs font-bold font-mono py-0.5 px-2 rounded-md",
+                      isActive ? "bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-500" : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                    )}>
+                      {count}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className={cn(
+                      "font-bold text-sm",
+                      isActive ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white"
+                    )}>{cat.label}</h4>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-0.5">Documents</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 const getExtension = (filename: string) => {
   return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2).toUpperCase();
@@ -76,16 +194,18 @@ function DeleteConfirmationDialog({ isOpen, fileName, onConfirm, onCancel }: { i
   );
 }
 
-function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: () => void; onUpload: (file: File, customName: string, docType: string, expiryDate: string) => void; }) {
+function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: () => void; onUpload: (file: File, customName: string, docType: string, expiryDate: string | null) => void; }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [customName, setCustomName] = useState("");
   const [docType, setDocType] = useState("Technical");
+  const [customDocType, setCustomDocType] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
+  const [isUnlimited, setIsUnlimited] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  useEffect(() => { if (isOpen) { setFile(null); setCustomName(""); setDocType("Technical"); setExpiryDate(""); setIsUploading(false); setPreviewUrl(null); } }, [isOpen]);
+  useEffect(() => { if (isOpen) { setFile(null); setCustomName(""); setDocType("Technical"); setCustomDocType(""); setExpiryDate(""); setIsUnlimited(false); setIsUploading(false); setPreviewUrl(null); } }, [isOpen]);
   useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
 
   const handleFileSelect = (f: File) => {
@@ -104,9 +224,12 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
 
   const handleSubmit = () => {
     if (!file || !customName) return;
+    const finalDocType = docType === 'Custom' ? customDocType : docType;
+    if (!finalDocType) return toast.error("Please specify category");
+
     setIsUploading(true);
-    const finalExpiry = expiryDate ? expiryDate : "Life";
-    setTimeout(() => { onUpload(file, customName, docType, finalExpiry); onClose(); }, 1500);
+    const finalExpiry = isUnlimited ? null : expiryDate;
+    setTimeout(() => { onUpload(file, customName, finalDocType, finalExpiry); onClose(); }, 1500);
   };
 
   const CATEGORIES = [
@@ -114,6 +237,7 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
     { id: "STCW Certificate", label: "Safety", icon: Anchor, activeClass: "bg-orange-500 border-orange-400" },
     { id: "Travel Document", label: "Travel", icon: Plane, activeClass: "bg-blue-500 border-blue-400" },
     { id: "Technical", label: "Tech", icon: Wrench, activeClass: "bg-purple-500 border-purple-400" },
+    { id: "Custom", label: "Custom", icon: Plus, activeClass: "bg-zinc-500 border-zinc-400" },
   ];
 
   if (!isOpen) return null;
@@ -157,7 +281,7 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
           <div className={cn("space-y-5 transition-all duration-500", !file ? "opacity-30 pointer-events-none blur-[2px]" : "opacity-100 blur-0")}>
             <div>
               <label className="text-[10px] font-bold uppercase text-zinc-500 mb-3 block px-1">Classify Document</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 {CATEGORIES.map((cat) => (
                   <button key={cat.id} onClick={() => setDocType(cat.id)} className={cn("relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-200 overflow-hidden group", docType === cat.id ? cn(cat.activeClass, "text-white shadow-lg scale-[1.02]") : "bg-zinc-900/50 border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-500")}>
                     <cat.icon size={18} className="relative z-10 transition-transform group-hover:scale-110" />
@@ -167,6 +291,12 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
                 ))}
               </div>
             </div>
+            {docType === 'Custom' && (
+              <div className="relative group">
+                <label className="text-[10px] font-bold uppercase text-zinc-500 mb-1.5 block px-1">Custom Category Name</label>
+                <input type="text" value={customDocType} onChange={(e) => setCustomDocType(e.target.value)} placeholder="Enter new category name..." className="w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1">
                 <div className="flex justify-between items-center mb-1.5 px-1">
@@ -181,10 +311,34 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
                 </div>
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <label className="text-[10px] font-bold uppercase text-zinc-500 mb-1.5 block px-1">Expiry Date <span className="text-zinc-600"></span></label>
+                <div className="flex justify-between items-center mb-1.5 px-1">
+                  <label className={cn("text-[10px] font-bold uppercase transition-colors", isUnlimited ? "text-zinc-600" : "text-zinc-500")}>Expiry Date</label>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="doc-unlimited" className={cn("text-[9px] font-bold uppercase cursor-pointer select-none transition-colors", isUnlimited ? "text-orange-500" : "text-zinc-600")}>Unlimited</label>
+                    <Switch
+                      id="doc-unlimited"
+                      checked={isUnlimited}
+                      onCheckedChange={(checked) => {
+                        setIsUnlimited(checked);
+                        if (checked) setExpiryDate("");
+                      }}
+                      className="scale-75 data-[state=checked]:bg-orange-500"
+                    />
+                  </div>
+                </div>
                 <div className="relative group">
-                  <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700 dark:[color-scheme:dark]" />
-                  {!expiryDate && <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600"><CalendarIcon size={14} /></div>}
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    disabled={isUnlimited}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className={cn(
+                      "w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium outline-none transition-colors",
+                      isUnlimited ? "text-zinc-600 cursor-not-allowed bg-zinc-900/50" : "text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50",
+                      "dark:[color-scheme:dark]"
+                    )}
+                  />
+                  {!expiryDate && !isUnlimited && <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600"><CalendarIcon size={14} /></div>}
                 </div>
               </div>
             </div>
@@ -192,7 +346,7 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
         </div>
         <div className="p-6 pt-2 bg-zinc-900/30 flex gap-3 z-10 shrink-0 border-t border-zinc-800/50 mt-4">
           <button onClick={onClose} disabled={isUploading} className="flex-1 py-3.5 rounded-xl text-xs font-bold uppercase text-zinc-500 hover:bg-zinc-900 hover:text-white transition-colors">Cancel</button>
-          <button onClick={handleSubmit} disabled={!file || !customName || isUploading} className="flex-[2] py-3.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <button onClick={handleSubmit} disabled={!file || !customName || isUploading || (!isUnlimited && !expiryDate)} className="flex-[2] py-3.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
             {isUploading ? (<><div className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Encrypting...</>) : (<><Check size={16} /> Confirm Upload</>)}
           </button>
         </div>
@@ -276,25 +430,12 @@ export default function DocumentsPage() {
       const data = await api.getDocuments();
 
       const mapped = data.map((d: any) => {
-        const sizeInBytes = d.doc ? (d.doc.length * (3 / 4)) : 0;
+        // Backend returns docSize (bytes) in DocumentSummary
+        const sizeInBytes = d.docSize || 0;
         const sizeInMB = sizeInBytes / (1024 * 1024);
 
-        let fileUrl = "";
-        let finalMimeType = "application/pdf";
-
-        if (d.doc) {
-          finalMimeType = getMimeType(d.doc);
-          const blob = b64toBlob(d.doc, finalMimeType);
-          if (blob) {
-            fileUrl = URL.createObjectURL(blob);
-          }
-        }
-
-        let displayExt = ".pdf";
-        if (finalMimeType === 'image/jpeg') displayExt = ".jpg";
-        if (finalMimeType === 'image/png') displayExt = ".png";
-
-        const hasExt = d.docName?.toLowerCase().endsWith(displayExt);
+        const displayExt = ".pdf";
+        const hasExt = d.docName?.toLowerCase().match(/\.(pdf|jpg|jpeg|png)$/i);
         const finalName = (d.docName || "Untitled") + (hasExt ? "" : displayExt);
 
         return {
@@ -307,14 +448,75 @@ export default function DocumentsPage() {
           status: d.status || "VALID",
           fileName: finalName,
           fileSizeMB: parseFloat(sizeInMB.toFixed(2)),
-          fileUrl: fileUrl
+          fileUrl: undefined, // Lazy load
+          docSize: sizeInBytes
         };
       });
 
       setDocuments(mapped);
     } catch (error) {
       console.error("Failed to load documents", error);
-      toast.error("Failed to load documents");
+      toast.error("Failed to load documents", { id: "load-docs-error" });
+    }
+  };
+
+  const fetchDocumentContent = async (doc: Document) => {
+    if (doc.fileUrl) return doc;
+
+    try {
+      const fullDoc = await api.getDocument(doc.id);
+      if (fullDoc.doc) {
+        const mimeType = getMimeType(fullDoc.doc);
+        const blob = b64toBlob(fullDoc.doc, mimeType);
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const updatedDoc = { ...doc, fileUrl: url, fileBlob: fullDoc.doc };
+          setDocuments(prev => prev.map(d => d.id === doc.id ? updatedDoc : d));
+          if (selectedDoc?.id === doc.id) {
+            setSelectedDoc(updatedDoc);
+          }
+          return updatedDoc;
+        }
+      }
+    } catch (e) {
+      toast.error("Failed to load document content");
+      console.error(e);
+    }
+    return doc;
+  };
+
+  const openPreview = async () => {
+    if (!selectedDoc) return;
+    if (!selectedDoc.fileUrl) {
+      toast.loading("Loading preview...");
+      const loaded = await fetchDocumentContent(selectedDoc);
+      // setSelectedDoc is handled in fetchDocumentContent if id matches
+      toast.dismiss();
+    }
+    setShowPDFViewer(true);
+  };
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!selectedDoc) return;
+
+    let targetDoc = selectedDoc;
+    if (!targetDoc.fileUrl) {
+      toast.loading("Downloading...");
+      targetDoc = await fetchDocumentContent(selectedDoc);
+      toast.dismiss();
+    }
+
+    if (targetDoc.fileUrl) {
+      const link = document.createElement("a");
+      link.href = targetDoc.fileUrl;
+      link.download = targetDoc.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Downloading ${targetDoc.fileName}`);
+    } else {
+      toast.error("File content not available");
     }
   };
 
@@ -324,7 +526,8 @@ export default function DocumentsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [docToDelete, setDocToDelete] = useState<number | null>(null);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<"med" | "saf" | "trv" | "tec" | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -333,11 +536,13 @@ export default function DocumentsPage() {
   const highlightedCategory = useMemo(() => {
     if (activeCategory) return activeCategory;
     if (selectedDoc) {
-      const t = selectedDoc.type.toLowerCase();
-      if (CAT_PATTERNS.med.test(t)) return 'med';
-      if (CAT_PATTERNS.saf.test(t)) return 'saf';
-      if (CAT_PATTERNS.trv.test(t)) return 'trv';
-      return 'tec';
+      const type = selectedDoc.type.toLowerCase();
+      // Try to match specific patterns first
+      for (const cat of CATEGORY_CONFIG) {
+        if (cat.pattern && cat.pattern.test(type)) return cat.id;
+      }
+      // If no pattern matches, the type itself is the category ID (dynamic)
+      return selectedDoc.type;
     }
     return null;
   }, [activeCategory, selectedDoc]);
@@ -346,24 +551,59 @@ export default function DocumentsPage() {
     return documents.filter(doc => {
       const matchesSearch = doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()) || doc.type.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
-      if (activeCategory === "med") return CAT_PATTERNS.med.test(doc.type.toLowerCase());
-      if (activeCategory === "saf") return CAT_PATTERNS.saf.test(doc.type.toLowerCase());
-      if (activeCategory === "trv") return CAT_PATTERNS.trv.test(doc.type.toLowerCase());
-      if (activeCategory === "tec") return !CAT_PATTERNS.med.test(doc.type.toLowerCase()) && !CAT_PATTERNS.saf.test(doc.type.toLowerCase()) && !CAT_PATTERNS.trv.test(doc.type.toLowerCase());
+
+      if (activeCategory) {
+        const config = CATEGORY_CONFIG.find(c => c.id === activeCategory);
+        if (config) {
+          if (config.pattern) {
+            return config.pattern.test(doc.type.toLowerCase());
+          }
+        }
+        // If active category is not in config, it's a dynamic category (exact match on docType)
+        // OR if it's 'tec' but falling back... wait.
+        // If config exists but pattern is null? We removed that.
+
+        // If it's a dynamic category, we expect doc.type to match activeCategory
+        // BUT activeCategory is the ID. For dynamic, ID = docType.
+        if (!config && doc.type !== activeCategory) return false;
+
+        // If config AND pattern check didn't return, check if it DOESN'T match others?
+        // No, we are being strict now.
+      }
       return true;
     });
   }, [searchTerm, documents, activeCategory]);
 
   const stats = useMemo(() => {
-    const getCount = (p: RegExp) => documents.filter(doc => p.test(doc.type.toLowerCase())).length;
-    const med = getCount(CAT_PATTERNS.med);
-    const saf = getCount(CAT_PATTERNS.saf);
-    const trv = getCount(CAT_PATTERNS.trv);
-    const tec = documents.length - (med + saf + trv);
-    return { total: documents.length, EXPIRING: documents.filter(d => d.status === 'EXPIRING').length, categories: { med, saf, trv, tec: Math.max(0, tec) } };
+    const counts: Record<string, number> = {};
+    const matchedDocIds = new Set<number>();
+
+    // 1. Count specific patterns from config
+    CATEGORY_CONFIG.forEach(cat => {
+      if (!cat.pattern) return;
+      const matches = documents.filter(doc => cat.pattern!.test(doc.type.toLowerCase()));
+      counts[cat.id] = matches.length;
+      matches.forEach(d => matchedDocIds.add(d.id));
+    });
+
+    // 2. Find documents that didn't match any config -> Dynamic Categories
+    documents.forEach(doc => {
+      if (!matchedDocIds.has(doc.id)) {
+        // This doc belongs to a dynamic category
+        // Use doc.type as the key
+        const key = doc.type; // e.g. "Insurance"
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+
+    return {
+      total: documents.length,
+      EXPIRING: documents.filter(d => d.status === 'EXPIRING').length,
+      categorized: counts
+    };
   }, [documents]);
 
-  const handleUpload = async (file: File, customName: string, docType: string, expiryDate: string) => {
+  const handleUpload = async (file: File, customName: string, docType: string, expiryDate: string | null) => {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
@@ -376,7 +616,7 @@ export default function DocumentsPage() {
           docType: docType,
           category: "Category",
           status: "VALID",
-          expiry: expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          expiry: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
           docName: customName,
           issueDate: new Date().toISOString(),
           uploadDate: new Date().toISOString(),
@@ -431,10 +671,10 @@ export default function DocumentsPage() {
 
   return (
     <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white pb-32 transition-colors duration-300">
-      <Toaster position="top-center" richColors />
 
-      <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
-        
+
+      <main className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
@@ -453,7 +693,7 @@ export default function DocumentsPage() {
         </header>
 
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start w-full">
-          
+
           <div className="flex-1 w-full space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full">
               <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 relative flex flex-col justify-between shadow-sm min-h-[140px]">
@@ -476,18 +716,53 @@ export default function DocumentsPage() {
                     {activeCategory ? "Clear Filter" : "Distribution"}
                   </span>
                 </button>
-                <div className="flex-1 flex items-center justify-between gap-1 pt-8 sm:pt-6">
-                  {[{ key: 'med', label: 'Medical', icon: Stethoscope, count: stats.categories.med }, { key: 'saf', label: 'Safety', icon: Anchor, count: stats.categories.saf }, { key: 'trv', label: 'Travel', icon: Plane, count: stats.categories.trv }, { key: 'tec', label: 'Tech', icon: Wrench, count: stats.categories.tec }].map((cat) => {
-                    const isSelected = highlightedCategory === cat.key;
-                    const bgClass = isSelected ? (cat.key === 'med' ? "bg-emerald-500 text-white" : (cat.key === 'saf' ? "bg-orange-500 text-white" : (cat.key === 'trv' ? "bg-blue-500 text-white" : "bg-purple-500 text-white"))) : "bg-zinc-50 text-zinc-300 dark:bg-zinc-900 dark:text-zinc-700 hover:scale-105";
-                    const textClass = isSelected ? (cat.key === 'med' ? "text-emerald-500" : (cat.key === 'saf' ? "text-orange-500" : (cat.key === 'trv' ? "text-blue-500" : "text-purple-500"))) : "text-zinc-900 dark:text-white";
+                <div className="flex-1 grid grid-cols-2 gap-2 pt-8">
+                  {CATEGORY_CONFIG.slice(0, 3).map((cat) => {
+                    const isSelected = highlightedCategory === cat.id;
+                    const count = stats.categorized[cat.id] || 0;
+
+                    // Dynamic colors based on config
+                    const activeBg = cat.color === 'emerald' ? "bg-emerald-500 text-white" :
+                      cat.color === 'orange' ? "bg-orange-500 text-white" :
+                        cat.color === 'blue' ? "bg-blue-500 text-white" :
+                          "bg-purple-500 text-white";
+
+                    const activeText = cat.color === 'emerald' ? "text-emerald-500" :
+                      cat.color === 'orange' ? "text-orange-500" :
+                        cat.color === 'blue' ? "text-blue-500" :
+                          "text-purple-500";
+
                     return (
-                      <button key={cat.key} onClick={() => setActiveCategory(prev => prev === cat.key ? null : cat.key as any)} className="flex flex-col items-center gap-1.5 group/item w-full outline-none">
-                        <div className={cn("p-2 rounded-2xl transition-all duration-300 shadow-sm", bgClass, isSelected && "scale-110 shadow-lg")}><cat.icon size={16} strokeWidth={2.5} className="sm:w-[18px] sm:h-[18px]" /></div>
-                        <div className="text-center"><span className={cn("block text-base sm:text-lg font-bold leading-none mb-0.5", textClass)}>{cat.count}</span><span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors", isSelected ? textClass : "text-zinc-400")}>{cat.label}</span></div>
+                      <button key={cat.id} onClick={() => setActiveCategory(prev => prev === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
+                        <div className={cn("p-2 rounded-2xl transition-all duration-300 shadow-sm", isSelected ? cn(activeBg, "scale-110 shadow-lg") : "bg-zinc-50 dark:bg-zinc-900 text-zinc-300 dark:text-zinc-600 hover:scale-105")}>
+                          <cat.icon size={16} strokeWidth={2.5} className="sm:w-[18px] sm:h-[18px]" />
+                        </div>
+                        <div className="text-center">
+                          <span className={cn("block text-base sm:text-lg font-bold leading-none", isSelected ? activeText : "text-zinc-900 dark:text-white")}>{count}</span>
+                          <span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors", isSelected ? activeText : "text-zinc-400")}>{cat.label}</span>
+                        </div>
                       </button>
                     );
                   })}
+
+                  {/* Dynamic 4th Slot: Either the 4th category or View All */}
+                  {CATEGORY_CONFIG.length > 3 ? (
+                    <button onClick={() => setIsCategoryModalOpen(true)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
+                      <div className="p-2 rounded-2xl transition-all duration-300 shadow-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-400 hover:scale-105 hover:border-orange-500 hover:text-orange-500">
+                        <LayoutGrid size={16} strokeWidth={2.5} className="sm:w-[18px] sm:h-[18px]" />
+                      </div>
+                      <div className="text-center">
+                        <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-orange-500 transition-colors">View All</span>
+                      </div>
+                    </button>
+                  ) : (
+                    // If exactly or less than 3, we don't need this, but assuming logic maps 4th if exists
+                    CATEGORY_CONFIG[3] && (
+                      <button onClick={() => setActiveCategory(prev => prev === CATEGORY_CONFIG[3].id ? null : CATEGORY_CONFIG[3].id)} className="flex flex-col items-center gap-1.5 group/item w-full outline-none">
+                        {/* Rendering similar to map above... simplified for brevity since we know we have 4 currently */}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
@@ -560,7 +835,7 @@ export default function DocumentsPage() {
                     <div className="w-24 h-32 sm:w-32 sm:h-40 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 shadow-inner">
                       <FileIcon size={40} className="text-zinc-700 sm:w-[48px] sm:h-[48px]" />
                     </div>
-                    <button onClick={() => setShowPDFViewer(true)} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs font-bold uppercase shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap">
+                    <button onClick={openPreview} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs font-bold uppercase shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap">
                       <Eye size={16} /> Preview Document
                     </button>
                   </div>
@@ -602,18 +877,17 @@ export default function DocumentsPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-4 sm:p-5 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex gap-3 z-10">
-                  <a
-                    href={selectedDoc.fileUrl}
-                    download={selectedDoc.fileName}
+                  <button
+                    onClick={handleDownload}
                     className={cn(
                       "flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]",
-                      !selectedDoc.fileUrl && "opacity-50 pointer-events-none cursor-not-allowed"
+                      // !selectedDoc.fileUrl && "opacity-50 pointer-events-none cursor-not-allowed" // Don't disable, let it fetch!
                     )}
                   >
                     <Download size={16} /> Download
-                  </a>
+                  </button>
                   <button onClick={() => { setDocToDelete(selectedDoc.id); setShowDeleteConfirm(true); }} className="flex-1 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl text-xs font-bold uppercase shadow-sm flex items-center justify-center gap-2 transition-colors"><Trash2 size={16} /> Delete</button>
                 </div>
               </motion.div>
@@ -637,6 +911,17 @@ export default function DocumentsPage() {
         }
       }} onCancel={() => setShowDeleteConfirm(false)} />}</AnimatePresence>
       <AnimatePresence>{showPDFViewer && selectedDoc && <PDFViewerModal isOpen={showPDFViewer} fileUrl={selectedDoc.fileUrl} fileName={selectedDoc.fileName} onClose={() => setShowPDFViewer(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {isCategoryModalOpen && (
+          <CategoryModal
+            isOpen={isCategoryModalOpen}
+            onClose={() => setIsCategoryModalOpen(false)}
+            onSelect={(id) => { setActiveCategory(id); setIsCategoryModalOpen(false); }}
+            activeCategory={activeCategory}
+            counts={stats.categorized}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

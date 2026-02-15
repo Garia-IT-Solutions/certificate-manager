@@ -52,6 +52,19 @@ export default function LoginPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPass, setSignupPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
+  const [signupDept, setSignupDept] = useState<"ENGINE" | "DECK">("ENGINE");
+  const [signupRank, setSignupRank] = useState("");
+
+  const RANKS: Record<string, string[]> = {
+    ENGINE: [
+      "Chief Engineer", "Second Engineer", "Third Engineer", "Fourth Engineer",
+      "Junior Engineer", "TME", "ETO", "EO", "Tr EO", "Fitter", "Motorman", "Wiper", "Tr Wiper", "Tr Seaman"
+    ],
+    DECK: [
+      "Master", "Chief Officer", "Second Officer", "Third Officer", "Fourth Officer",
+      "Cadet", "Bosun", "Chief Cook", "Pumpman", "Able Seaman", "Ordinary Seaman", "Tr Seaman", "GS"
+    ]
+  };
 
   const [resetStep, setResetStep] = useState<"email" | "otp" | "newPassword">("email");
   const [resetEmail, setResetEmail] = useState("");
@@ -101,7 +114,9 @@ export default function LoginPage() {
         first_name: firstName,
         last_name: lastName,
         email: signupEmail,
-        password: signupPass
+        password: signupPass,
+        department: signupDept,
+        rank: signupRank
       });
       toast.success("Crew member registered successfully");
       setMode("login");
@@ -399,6 +414,51 @@ export default function LoginPage() {
                       </div>
                     </div>
 
+                    <div className="group">
+                      <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Department</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setSignupDept("ENGINE"); setSignupRank(""); }}
+                          className={cn(
+                            "py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border",
+                            signupDept === "ENGINE"
+                              ? "bg-orange-500/10 border-orange-500/50 text-orange-500"
+                              : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700"
+                          )}
+                        >
+                          Engine
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setSignupDept("DECK"); setSignupRank(""); }}
+                          className={cn(
+                            "py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border",
+                            signupDept === "DECK"
+                              ? "bg-blue-500/10 border-blue-500/50 text-blue-500"
+                              : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700"
+                          )}
+                        >
+                          Deck
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-1.5 ml-1 tracking-wider">Rank</label>
+                      <select
+                        required
+                        value={signupRank}
+                        onChange={(e) => setSignupRank(e.target.value)}
+                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white font-mono appearance-none cursor-pointer"
+                      >
+                        <option value="" disabled>Select your rank</option>
+                        {RANKS[signupDept].map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="pt-2 flex flex-col gap-3">
                       <button type="submit" disabled={isLoading} className="w-full rounded-xl bg-orange-600 hover:bg-orange-500 text-white py-3.5 text-xs font-bold uppercase tracking-widest transition-all shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
                         {isLoading ? <Loader2 size={14} className="animate-spin" /> : "Sign Up"}
@@ -520,8 +580,8 @@ export default function LoginPage() {
 
           <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
             <div className="flex items-center gap-4 text-zinc-500 font-mono">
-              <span className="flex items-center gap-1.5"><Waves size={12} className="text-blue-500" /> Calm</span>
-              <span className="flex items-center gap-1.5"><Wind size={12} className="text-zinc-400" /> 12kn</span>
+              <span className="flex items-center gap-1.5"></span>
+              <span className="flex items-center gap-1.5"></span>
             </div>
             <LiveTime />
           </div>

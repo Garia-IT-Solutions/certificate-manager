@@ -97,7 +97,7 @@ function AnimatedCounter({ value }: { value: number }) {
   return <motion.span>{display}</motion.span>;
 }
 
-const SPRING_TRANSITION = { type: "spring", stiffness: 180, damping: 22, mass: 0.8 } as const;
+const SPRING_TRANSITION = { type: "spring", stiffness: 200, damping: 25, mass: 1 } as const;
 
 interface BentoCardProps {
   id: string;
@@ -120,35 +120,38 @@ function BentoCard({ id, title, subtitle, icon: Icon, className, children, summa
         layoutId={`card-${id}-${uniqueId}`}
         onClick={() => setIsOpen(true)}
         className={cn(
-          "relative group cursor-pointer overflow-hidden rounded-[2rem] border transition-all duration-300 h-full w-full",
+          "relative group cursor-pointer overflow-hidden rounded-[2rem] border transition-all duration-300 h-full w-full will-change-transform z-0",
           alert
             ? "bg-gradient-to-br from-orange-500 to-orange-600 border-orange-500 text-white shadow-xl shadow-orange-500/20"
             : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg dark:hover:shadow-zinc-900/40",
           className
         )}
+        style={{ borderRadius: 32 }}
       >
         <div className={cn("h-full flex flex-col relative z-10", alert ? "p-0" : "p-6")}>
-          {!alert && (
+          {!alert && (title || Icon) && (
             <div className="flex justify-between items-start mb-2">
-              <motion.div layoutId={`header-${id}-${uniqueId}`} className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5">
                 {Icon && (
-                  <div className={cn("p-2 rounded-xl backdrop-blur-md transition-colors", "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800")}>
+                  <div className={cn("p-2 rounded-xl backdrop-blur-none transition-colors", "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800")}>
                     <Icon size={16} strokeWidth={2} />
                   </div>
                 )}
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{title}</h4>
-                  {subtitle && <p className="text-[9px] text-zinc-300">{subtitle}</p>}
-                </div>
-              </motion.div>
+                {title && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{title}</h4>
+                    {subtitle && <p className="text-[9px] text-zinc-300">{subtitle}</p>}
+                  </div>
+                )}
+              </div>
               <motion.div initial={{ opacity: 0 }} whileHover={{ opacity: 1 }} className="text-zinc-400">
                 <Maximize2 size={14} />
               </motion.div>
             </div>
           )}
-          <motion.div layoutId={`content-${id}-${uniqueId}`} className={cn("flex-1 flex flex-col justify-center w-full", !alert && "justify-end")}>
+          <div className={cn("flex-1 flex flex-col justify-center w-full", !alert && "justify-end")}>
             {summary}
-          </motion.div>
+          </div>
         </div>
         {!alert && (
           <div className="absolute inset-0 bg-gradient-to-tr from-zinc-100/50 via-transparent to-transparent dark:from-zinc-800/10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -160,40 +163,47 @@ function BentoCard({ id, title, subtitle, icon: Icon, className, children, summa
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl z-[60]"
+              className="fixed inset-0 bg-zinc-950/60 z-[60] will-change-[opacity]"
             />
             <div className="fixed inset-0 flex items-center justify-center z-[70] pointer-events-none p-4 md:p-8">
               <motion.div
                 layoutId={`card-${id}-${uniqueId}`}
                 className={cn(
-                  "w-full max-w-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[32px] overflow-hidden shadow-2xl pointer-events-auto flex flex-col max-h-[85vh]",
+                  "w-full max-w-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xl pointer-events-auto flex flex-col max-h-[85vh] will-change-transform z-50",
                   alert && "border-orange-500 ring-4 ring-orange-500/20"
                 )}
+                style={{ borderRadius: 32 }}
                 transition={SPRING_TRANSITION}
               >
                 <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-900 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/20">
-                  <motion.div layoutId={`header-${id}-${uniqueId}`} className="flex items-center gap-4">
-                    <div className={cn("p-3 rounded-2xl", alert ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-500" : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white")}>
-                      {Icon && <Icon size={24} strokeWidth={2} />}
-                    </div>
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-4"
+                  >
+                    {Icon && (
+                      <div className={cn("p-3 rounded-2xl", alert ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-500" : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white")}>
+                        <Icon size={24} strokeWidth={2} />
+                      </div>
+                    )}
                     <div>
-                      <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">{title}</h3>
+                      {title && <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">{title}</h3>}
                       <p className="text-xs text-zinc-500 uppercase tracking-wide">Detailed Breakdown</p>
                     </div>
                   </motion.div>
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                     className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"
                   >
                     <X size={20} className="text-zinc-500" />
-                  </button>
+                  </motion.button>
                 </div>
-                <motion.div
-                  className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar w-full"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-                >
+                <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar w-full">
                   {children}
-                </motion.div>
+                </div>
               </motion.div>
             </div>
           </>
@@ -649,9 +659,12 @@ function NRIStatusSummary({ data }: { data?: DashboardData['nriStatus'] }) {
 }
 
 function NRIStatusDetail({ data }: { data?: DashboardData['nriStatus'] }) {
-  if (!data) return null;
+  const days = data?.days ?? 0;
+  const startDate = data?.startDate ?? '-';
+  const endDate = data?.endDate ?? '-';
+  const isRetained = data?.isRetained ?? false;
+  const daysRemaining = data?.daysRemaining ?? 0;
 
-  const { days, startDate, endDate, isRetained, daysRemaining } = data;
   const percentage = Math.min(100, Math.round((days / 182) * 100));
 
   return (
@@ -713,7 +726,7 @@ function NRIStatusDetail({ data }: { data?: DashboardData['nriStatus'] }) {
         <div className="min-w-0">
           <p className="text-xs font-bold text-blue-700 dark:text-blue-400 mb-0.5 truncate">Calculation Period</p>
           <p className="text-[11px] text-blue-600/80 dark:text-blue-400/80 leading-relaxed break-words">
-            For Financial Year ending <strong className="text-blue-800 dark:text-blue-300">31 Mar {endDate.split(' ')[2]}</strong>.
+            For Financial Year ending <strong className="text-blue-800 dark:text-blue-300">31 Mar {endDate !== '-' ? endDate.split(' ')[2] : ''}</strong>.
             Calculation is based on sea time between {startDate} and {endDate}.
           </p>
         </div>
@@ -753,8 +766,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen w-full bg-transparent selection:bg-orange-500 selection:text-white pb-32">
-      <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
-        
+      <main className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 md:gap-8">
+
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -764,7 +777,7 @@ export default function DashboardPage() {
               </span>
               <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 truncate">System Online</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white pb-1">
               Captain's<span className="font-bold"> Log</span>
             </h1>
           </div>
@@ -844,25 +857,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[90%] sm:w-full max-w-[300px]">
-          <div className="flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-white/80 dark:bg-[#121217]/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-black/10 ring-1 ring-white/20">
-            {[
-              { icon: Ship, label: "Log", href: "/dashboard/sea-time" },
-              { icon: Upload, label: "Upload", href: "/dashboard/certificates" },
-              { icon: Navigation, label: "Map", href: "/dashboard/navigation" },
-              { icon: Download, label: "Export", href: "/dashboard/reports" },
-            ].map((action, i) => (
-              <Link key={i} href={action.href} className="group relative flex flex-col items-center gap-1 transition-all hover:-translate-y-1">
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all shadow-sm">
-                  <action.icon size={18} strokeWidth={2} className="text-zinc-600 dark:text-zinc-400 group-hover:text-white dark:group-hover:text-black" />
-                </div>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white absolute -bottom-5 opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap hidden sm:block">
-                  {action.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
+
 
       </main>
     </div>

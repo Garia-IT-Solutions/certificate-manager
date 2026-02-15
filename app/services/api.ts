@@ -46,6 +46,14 @@ export const api = {
         return res.json();
     },
 
+    getCertificate: async (id: number) => {
+        const res = await fetch(`${API_URL}/certificates/${id}`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to fetch certificate");
+        return res.json();
+    },
+
     createCertificate: async (data: any) => {
         const res = await fetch(`${API_URL}/certificates`, {
             method: "POST",
@@ -81,6 +89,14 @@ export const api = {
             headers: getHeaders(),
         });
         if (!res.ok) throw new Error("Failed to fetch documents");
+        return res.json();
+    },
+
+    getDocument: async (id: number) => {
+        const res = await fetch(`${API_URL}/documents/${id}`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to fetch document");
         return res.json();
     },
 
