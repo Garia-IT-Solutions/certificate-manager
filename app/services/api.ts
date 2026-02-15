@@ -84,8 +84,8 @@ export const api = {
     },
 
     // DOCUMENTS
-    getDocuments: async () => {
-        const res = await fetch(`${API_URL}/documents`, {
+    getDocuments: async (archived: boolean = false) => {
+        const res = await fetch(`${API_URL}/documents?archived=${archived}`, {
             headers: getHeaders(),
         });
         if (!res.ok) throw new Error("Failed to fetch documents");
@@ -117,6 +117,28 @@ export const api = {
         });
         if (!res.ok) throw new Error("Failed to delete document");
         return true;
+    },
+
+    archiveDocument: async (id: number, archived: boolean) => {
+        const res = await fetch(`${API_URL}/documents/${id}/archive?archived=${archived}`, {
+            method: "PATCH",
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to update archive status");
+        return res.json();
+    },
+
+    updateDocument: async (id: number, updates: any) => {
+        const res = await fetch(`${API_URL}/documents/${id}`, {
+            method: "PATCH",
+            headers: {
+                ...getHeaders(),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updates),
+        });
+        if (!res.ok) throw new Error("Failed to update document");
+        return res.json();
     },
 
     // SEA TIME LOGS

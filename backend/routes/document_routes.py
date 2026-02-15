@@ -16,8 +16,8 @@ def create_document(doc: DocumentCreate, current_user: Profile = Depends(get_cur
         raise e
 
 @router.get("/documents", response_model=List[DocumentSummary])
-def read_documents(current_user: Profile = Depends(get_current_user)):
-    return document_controller.get_documents(current_user.id)
+def read_documents(archived: bool = False, current_user: Profile = Depends(get_current_user)):
+    return document_controller.get_documents(current_user.id, archived)
 
 @router.get("/documents/{doc_id}", response_model=Document)
 def read_document(doc_id: int, current_user: Profile = Depends(get_current_user)):
@@ -31,3 +31,17 @@ def delete_document(doc_id: int, current_user: Profile = Depends(get_current_use
     success = document_controller.delete_document(doc_id, current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="Document not found")
+
+@router.patch("/documents/{doc_id}/archive", status_code=status.HTTP_200_OK)
+def archive_document(doc_id: int, archived: bool, current_user: Profile = Depends(get_current_user)):
+    success = document_controller.toggle_archive_status(doc_id, current_user.id, archived)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"message": "Document archive status updated"}
+
+@router.patch("/documents/{doc_id}", status_code=status.HTTP_200_OK)
+def update_document_details(doc_id: int, updates: dict, current_user: Profile = Depends(get_current_user)):
+    success = document_controller.update_document(doc_id, current_user.id, updates)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found or no changes made")
+    return {"message": "Document updated successfully"}

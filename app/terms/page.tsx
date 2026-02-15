@@ -5,15 +5,14 @@ import { ArrowLeft } from "lucide-react";
 
 export default function TermsPage() {
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 md:p-12">
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 md:p-12 flex items-center justify-center">
             <div className="max-w-3xl mx-auto">
-                <Link href="/register" className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 mb-8 transition-colors">
-                    <ArrowLeft size={16} /> Back to Sign Up
+                <Link href="/dashboard" className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 mb-8 transition-colors">
+                    <ArrowLeft size={16} /> Back
                 </Link>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 md:p-12 shadow-sm border border-zinc-200 dark:border-zinc-800">
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Terms and Conditions</h1>
-                    <p className="text-zinc-500 text-sm mb-8">Last updated: {new Date().toLocaleDateString()}</p>
 
                     <div className="space-y-6 text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
                         <section>

@@ -9,10 +9,12 @@ class DocumentBase(BaseModel):
     category: str # (medical, safety, travel, tech, identity)
     status: str #enum["EXPIRING", "VALID", "INVALID"]
     expiry: Optional[date] = None
+    issuedBy: Optional[str] = "Self"
     docName: str
     issueDate: datetime
     uploadDate: datetime
     hidden: bool
+    archived: bool = False
 
 class DocumentCreate(DocumentBase):
     doc: bytes

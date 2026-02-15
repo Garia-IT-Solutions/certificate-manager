@@ -11,7 +11,8 @@ import {
   FileText,
   Award,
   Anchor,
-  User
+  User,
+  Shield
 } from "lucide-react";
 
 const navItems = [
@@ -114,6 +115,17 @@ export function AppSidebar() {
             );
           })}
         </nav>
+
+        <Link
+          href="/terms"
+          onClick={() => {
+            if (setOpenMobile) setOpenMobile(false);
+          }}
+          className="mx-4 mb-2 flex items-center gap-3 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 transition-all rounded-lg group"
+        >
+          <Shield size={16} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+          <span className="font-mono text-xs font-medium uppercase tracking-wide">Terms & Conditions</span>
+        </Link>
 
         <Link
           href="/dashboard/profile"
