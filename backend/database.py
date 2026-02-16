@@ -154,6 +154,7 @@ def init_db():
             issueDate TEXT,
             uploadDate TEXT,
             hidden BOOLEAN,
+            archived BOOLEAN DEFAULT 0,
             user_id INTEGER
         )
     ''')
@@ -167,6 +168,22 @@ def init_db():
             print("Migrated: Added column user_id to documents")
         except Exception as e:
             print(f"Migration error for documents user_id: {e}")
+
+    # Check for archived in documents and migrate
+    if 'archived' not in columns:
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN archived BOOLEAN DEFAULT 0")
+            print("Migrated: Added column archived to documents")
+        except Exception as e:
+            print(f"Migration error for documents archived: {e}")
+
+    # Check for issuedBy in documents and migrate
+    if 'issuedBy' not in columns:
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN issuedBy TEXT DEFAULT 'Self'")
+            print("Migrated: Added column issuedBy to documents")
+        except Exception as e:
+            print(f"Migration error for documents issuedBy: {e}")
 
     # Seed Default Profile if empty
     cursor.execute('SELECT count(*) FROM profiles')

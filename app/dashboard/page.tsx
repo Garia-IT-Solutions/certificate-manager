@@ -778,7 +778,9 @@ export default function DashboardPage() {
               <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 truncate">System Online</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white pb-1">
-              Captain's<span className="font-bold"> Log</span>
+
+              Captain's<span className="font-bold text-[#FF3300]">Log</span>
+
             </h1>
           </div>
 

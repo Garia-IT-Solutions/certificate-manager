@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Sparkles,
   Calendar as CalendarIcon,
-  LayoutGrid
+  LayoutGrid,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -39,13 +40,14 @@ interface Document {
   number: string;
   issuedBy: string;
   issueDate: string;
-  expiryDate: string;
+  expiryDate: string | null;
   status: "VALID" | "EXPIRING" | "EXPIRED";
   fileName: string;
   fileSizeMB: number;
   fileUrl?: string; // Blob URL
   fileBlob?: string; // Base64 data if needed
   docSize?: number; // Size in bytes from backend
+  archived: boolean;
 }
 
 const CATEGORY_CONFIG = [
@@ -194,7 +196,7 @@ function DeleteConfirmationDialog({ isOpen, fileName, onConfirm, onCancel }: { i
   );
 }
 
-function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: () => void; onUpload: (file: File, customName: string, docType: string, expiryDate: string | null) => void; }) {
+function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: () => void; onUpload: (file: File, customName: string, docType: string, expiryDate: string | null, issuer: string) => void; }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [customName, setCustomName] = useState("");
@@ -204,8 +206,9 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [issuer, setIssuer] = useState("Self Upload");
 
-  useEffect(() => { if (isOpen) { setFile(null); setCustomName(""); setDocType("Technical"); setCustomDocType(""); setExpiryDate(""); setIsUnlimited(false); setIsUploading(false); setPreviewUrl(null); } }, [isOpen]);
+  useEffect(() => { if (isOpen) { setFile(null); setCustomName(""); setDocType("Technical"); setCustomDocType(""); setExpiryDate(""); setIsUnlimited(false); setIsUploading(false); setPreviewUrl(null); setIssuer("Self Upload"); } }, [isOpen]);
   useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
 
   const handleFileSelect = (f: File) => {
@@ -229,7 +232,7 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
 
     setIsUploading(true);
     const finalExpiry = isUnlimited ? null : expiryDate;
-    setTimeout(() => { onUpload(file, customName, finalDocType, finalExpiry); onClose(); }, 1500);
+    setTimeout(() => { onUpload(file, customName, finalDocType, finalExpiry, issuer); onClose(); }, 1500);
   };
 
   const CATEGORIES = [
@@ -312,6 +315,20 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <div className="flex justify-between items-center mb-1.5 px-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-500">Issued By</label>
+                </div>
+                <div className="relative group">
+                  <input
+                    type="text"
+                    value={issuer}
+                    onChange={(e) => setIssuer(e.target.value)}
+                    placeholder="e.g. Authority"
+                    className="w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700"
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <div className="flex justify-between items-center mb-1.5 px-1">
                   <label className={cn("text-[10px] font-bold uppercase transition-colors", isUnlimited ? "text-zinc-600" : "text-zinc-500")}>Expiry Date</label>
                   <div className="flex items-center gap-2">
                     <label htmlFor="doc-unlimited" className={cn("text-[9px] font-bold uppercase cursor-pointer select-none transition-colors", isUnlimited ? "text-orange-500" : "text-zinc-600")}>Unlimited</label>
@@ -393,9 +410,11 @@ function PDFViewerModal({ isOpen, fileUrl, fileName, onClose }: { isOpen: boolea
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
 
+  const [showArchived, setShowArchived] = useState(false);
+
   useEffect(() => {
     loadDocuments();
-  }, []);
+  }, [showArchived]);
 
   const getMimeType = (b64: string) => {
     if (b64.startsWith('JVBERi0')) return 'application/pdf';
@@ -427,7 +446,7 @@ export default function DocumentsPage() {
 
   const loadDocuments = async () => {
     try {
-      const data = await api.getDocuments();
+      const data = await api.getDocuments(showArchived);
 
       const mapped = data.map((d: any) => {
         // Backend returns docSize (bytes) in DocumentSummary
@@ -442,14 +461,15 @@ export default function DocumentsPage() {
           id: d.id,
           type: d.docType || "Technical",
           number: d.docID || "DOC-000",
-          issuedBy: "Self Upload",
+          issuedBy: d.issuedBy || "Self Upload",
           issueDate: d.issueDate || new Date().toISOString(),
-          expiryDate: d.expiry || new Date().toISOString(),
+          expiryDate: d.expiry,
           status: d.status || "VALID",
           fileName: finalName,
           fileSizeMB: parseFloat(sizeInMB.toFixed(2)),
           fileUrl: undefined, // Lazy load
-          docSize: sizeInBytes
+          docSize: sizeInBytes,
+          archived: d.archived
         };
       });
 
@@ -533,6 +553,13 @@ export default function DocumentsPage() {
   const [renameValue, setRenameValue] = useState("");
   const [renameExt, setRenameExt] = useState("");
 
+  const [editValues, setEditValues] = useState({
+    type: "",
+    issuedBy: "",
+    issueDate: "",
+    expiryDate: null as string | null
+  });
+
   const highlightedCategory = useMemo(() => {
     if (activeCategory) return activeCategory;
     if (selectedDoc) {
@@ -603,7 +630,7 @@ export default function DocumentsPage() {
     };
   }, [documents]);
 
-  const handleUpload = async (file: File, customName: string, docType: string, expiryDate: string | null) => {
+  const handleUpload = async (file: File, customName: string, docType: string, expiryDate: string | null, issuer: string) => {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
@@ -620,7 +647,8 @@ export default function DocumentsPage() {
           docName: customName,
           issueDate: new Date().toISOString(),
           uploadDate: new Date().toISOString(),
-          hidden: false
+          hidden: false,
+          issuedBy: issuer,
         };
 
         await api.createDocument(newDocData);
@@ -644,17 +672,58 @@ export default function DocumentsPage() {
         setRenameValue(selectedDoc.fileName);
         setRenameExt("");
       }
+      setEditValues({
+        type: selectedDoc.type,
+        issuedBy: selectedDoc.issuedBy,
+        issueDate: selectedDoc.issueDate.split('T')[0],
+        expiryDate: selectedDoc.expiryDate ? selectedDoc.expiryDate.split('T')[0] : null
+      });
       setIsRenaming(true);
     }
   };
 
-  const saveRename = () => {
+  const saveRename = async () => {
     if (selectedDoc && renameValue.trim()) {
       const newFullName = renameValue.trim() + renameExt;
-      setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, fileName: newFullName } : d));
-      setSelectedDoc(prev => prev ? { ...prev, fileName: newFullName } : null);
-      setIsRenaming(false);
-      toast.success("Document renamed");
+
+      try {
+        const updates = {
+          docName: newFullName,
+          docType: editValues.type,
+          issuedBy: editValues.issuedBy,
+          issueDate: editValues.issueDate,
+          expiry: editValues.expiryDate
+        };
+
+        await api.updateDocument(selectedDoc.id, updates);
+
+        // Optimistic update + reload
+        setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? {
+          ...d,
+          fileName: newFullName,
+          type: updates.docType,
+          issuedBy: updates.issuedBy,
+          issueDate: updates.issueDate,
+          expiryDate: updates.expiry
+        } : d));
+
+        setSelectedDoc(prev => prev ? {
+          ...prev,
+          fileName: newFullName,
+          type: updates.docType,
+          issuedBy: updates.issuedBy,
+          issueDate: updates.issueDate,
+          expiryDate: updates.expiry
+        } : null);
+
+        // Also reload to get fresh status if dates changed
+        loadDocuments();
+
+        setIsRenaming(false);
+        toast.success("Document updated");
+      } catch (e) {
+        toast.error("Failed to update document");
+      }
     }
   };
 
@@ -678,7 +747,7 @@ export default function DocumentsPage() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
-              Document<span className="font-bold text-orange-500">Vault</span>
+              Document<span className="font-bold text-[#FF3300]">Vault</span>
             </h1>
             <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
               Official Digital Archive
@@ -696,19 +765,24 @@ export default function DocumentsPage() {
 
           <div className="flex-1 w-full space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full">
-              <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 relative flex flex-col justify-between shadow-sm min-h-[140px]">
+              <div onClick={() => setShowArchived(!showArchived)} className={cn("bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-6 relative flex flex-col justify-between shadow-sm h-[220px] cursor-pointer transition-all hover:border-orange-500 group/toggle", showArchived ? "ring-2 ring-orange-500" : "")}>
                 <div className="flex justify-between items-start">
-                  <div className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500"><FileText size={20} /></div>
-                  <MoreHorizontal size={16} className="text-zinc-300" />
+                  <div className={cn("p-2 rounded-lg text-zinc-500 transition-colors", showArchived ? "bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-500" : "bg-zinc-100 dark:bg-zinc-900")}>{showArchived ? <LayoutGrid size={24} /> : <FileText size={24} />}</div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900">
+                    <span className="text-[10px] font-bold uppercase text-zinc-500 group-hover/toggle:text-zinc-900 dark:group-hover/toggle:text-zinc-300 transition-colors">
+                      {showArchived ? "View Active" : "View Archive"}
+                    </span>
+                    <Switch checked={showArchived} className="scale-75 pointer-events-none data-[state=checked]:bg-orange-500" />
+                  </div>
                 </div>
                 <div>
-                  <h3 className="text-4xl font-light text-zinc-900 dark:text-white tracking-tighter">{stats.total}</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1">Total Archived</p>
+                  <h3 className="text-6xl font-light text-zinc-900 dark:text-white tracking-tighter">{stats.total}</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2">{showArchived ? "Archived Documents" : "Active Documents"}</p>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-4 sm:p-5 flex flex-col relative overflow-hidden shadow-sm min-h-[140px]">
-                <button onClick={() => activeCategory && setActiveCategory(null)} className={cn("absolute top-4 sm:top-5 left-4 sm:left-5 flex items-center gap-2 transition-all", activeCategory ? "cursor-pointer hover:opacity-70" : "pointer-events-none")}>
+              <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-4 sm:p-5 flex flex-col relative overflow-hidden shadow-sm h-[220px]">
+                <button onClick={() => activeCategory && setActiveCategory(null)} className={cn("absolute top-4 sm:top-5 left-4 sm:left-5 flex items-center gap-2 transition-all z-10", activeCategory ? "cursor-pointer hover:opacity-70" : "pointer-events-none")}>
                   <div className="p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-md text-zinc-500">
                     {activeCategory ? <FilterX size={14} className="text-orange-500" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>}
                   </div>
@@ -716,7 +790,7 @@ export default function DocumentsPage() {
                     {activeCategory ? "Clear Filter" : "Distribution"}
                   </span>
                 </button>
-                <div className="flex-1 grid grid-cols-2 gap-2 pt-8">
+                <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-4 pt-10 pb-1">
                   {CATEGORY_CONFIG.slice(0, 3).map((cat) => {
                     const isSelected = highlightedCategory === cat.id;
                     const count = stats.categorized[cat.id] || 0;
@@ -734,12 +808,12 @@ export default function DocumentsPage() {
 
                     return (
                       <button key={cat.id} onClick={() => setActiveCategory(prev => prev === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
-                        <div className={cn("p-2 rounded-2xl transition-all duration-300 shadow-sm", isSelected ? cn(activeBg, "scale-110 shadow-lg") : "bg-zinc-50 dark:bg-zinc-900 text-zinc-300 dark:text-zinc-600 hover:scale-105")}>
-                          <cat.icon size={16} strokeWidth={2.5} className="sm:w-[18px] sm:h-[18px]" />
+                        <div className={cn("p-1.5 rounded-xl transition-all duration-300 shadow-sm", isSelected ? cn(activeBg, "scale-110 shadow-lg") : "bg-zinc-50 dark:bg-zinc-900 text-zinc-300 dark:text-zinc-600 hover:scale-105")}>
+                          <cat.icon size={16} strokeWidth={2.5} className="sm:w-[20px] sm:h-[20px]" />
                         </div>
                         <div className="text-center">
-                          <span className={cn("block text-base sm:text-lg font-bold leading-none", isSelected ? activeText : "text-zinc-900 dark:text-white")}>{count}</span>
-                          <span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors", isSelected ? activeText : "text-zinc-400")}>{cat.label}</span>
+                          <span className={cn("block text-sm font-bold leading-none", isSelected ? activeText : "text-zinc-900 dark:text-white")}>{count}</span>
+                          <span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors truncate max-w-[64px]", isSelected ? activeText : "text-zinc-400")}>{cat.label}</span>
                         </div>
                       </button>
                     );
@@ -766,10 +840,20 @@ export default function DocumentsPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-lg shadow-orange-500/20 flex flex-col justify-between min-h-[140px]">
-                <div className="flex items-center gap-2 bg-white/20 px-2 py-1 rounded-full w-fit backdrop-blur-sm"><AlertTriangle size={12} /><span className="text-[9px] font-bold uppercase tracking-wider">Expiring</span></div>
-                <div><h3 className="text-4xl font-bold tracking-tighter">{stats.EXPIRING}</h3><p className="text-[10px] font-medium opacity-80 mt-1">Items Expiring Soon</p></div>
-                <div className="absolute right-0 bottom-0 opacity-10 scale-150 translate-y-4 translate-x-4"><AlertTriangle size={100} /></div>
+              <div className="relative overflow-hidden rounded-[2rem] border border-orange-200/50 dark:border-orange-900/30 bg-white dark:bg-zinc-950 p-6 flex flex-col group hover:shadow-md transition-all h-[220px]">
+                <div className="absolute -right-12 -top-12 w-32 h-32 bg-gradient-to-br from-orange-100/30 to-transparent dark:from-orange-800/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative z-10 flex-1 flex flex-col justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
+                      <Clock size={24} strokeWidth={2} />
+                    </div>
+                    <span className="font-mono text-[10px] uppercase text-orange-600 dark:text-orange-400 font-bold tracking-widest">Expiring</span>
+                  </div>
+                  <div>
+                    <h2 className="text-6xl font-light tracking-tighter text-orange-600 dark:text-orange-400 leading-none">{stats.EXPIRING}</h2>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-orange-700/60 dark:text-orange-300/60 mt-2">Items Expiring Soon</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -863,18 +947,38 @@ export default function DocumentsPage() {
                     )}
                   </div>
 
-                  <div className="p-5 sm:p-6 pt-0 bg-zinc-50 dark:bg-black/20 flex flex-col gap-5 flex-1">
+                  <div className="p-5 sm:p-6 pt-0 bg-zinc-50 dark:bg-black/20 flex flex-col gap-5 flex-1 overflow-y-auto">
                     <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 mb-2 shrink-0"></div>
-                    <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Document Type</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight break-words">{selectedDoc.type}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Document ID</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight font-mono break-all">{selectedDoc.number}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issued By</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight break-words">{selectedDoc.issuedBy}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issue Date</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.issueDate.split('T')[0]}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Expiry Date</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.expiryDate.split('T')[0]}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Status</p><p className={cn("text-xs sm:text-sm font-bold uppercase", selectedDoc.status === 'VALID' ? "text-emerald-500" : selectedDoc.status === 'EXPIRING' ? "text-orange-500" : "text-red-500")}>{selectedDoc.status}</p></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Extension</p><span className="inline-block px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 uppercase">{getExtension(selectedDoc.fileName)}</span></div>
-                      <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">File Size</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.fileSizeMB} MB</p></div>
-                    </div>
+                    {isRenaming ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Document Type</p>
+                          <input value={editValues.type} onChange={e => setEditValues({ ...editValues, type: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                        </div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issued By</p>
+                          <input value={editValues.issuedBy} onChange={e => setEditValues({ ...editValues, issuedBy: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                        </div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issue Date</p>
+                          <input type="date" value={editValues.issueDate} onChange={e => setEditValues({ ...editValues, issueDate: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                        </div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Expiry Date</p>
+                          <div className="flex gap-2 items-center">
+                            <input type="date" disabled={editValues.expiryDate === null} value={editValues.expiryDate || ""} onChange={e => setEditValues({ ...editValues, expiryDate: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                            <button onClick={() => setEditValues({ ...editValues, expiryDate: editValues.expiryDate ? null : new Date().toISOString().split('T')[0] })} className="text-[10px] uppercase font-bold text-orange-500 whitespace-nowrap">{editValues.expiryDate === null ? "Set Date" : "Unlimited"}</button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Document Type</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight break-words">{selectedDoc.type}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Document ID</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight font-mono break-all">{selectedDoc.number}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issued By</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight break-words">{selectedDoc.issuedBy}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issue Date</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.issueDate.split('T')[0]}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Expiry Date</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.expiryDate ? selectedDoc.expiryDate.split('T')[0] : "Unlimited"}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Status</p><p className={cn("text-xs sm:text-sm font-bold uppercase", selectedDoc.status === 'VALID' ? "text-emerald-500" : selectedDoc.status === 'EXPIRING' ? "text-orange-500" : "text-red-500")}>{selectedDoc.status}</p></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Extension</p><span className="inline-block px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 uppercase">{getExtension(selectedDoc.fileName)}</span></div>
+                        <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">File Size</p><p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">{selectedDoc.fileSizeMB} MB</p></div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -888,7 +992,25 @@ export default function DocumentsPage() {
                   >
                     <Download size={16} /> Download
                   </button>
-                  <button onClick={() => { setDocToDelete(selectedDoc.id); setShowDeleteConfirm(true); }} className="flex-1 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl text-xs font-bold uppercase shadow-sm flex items-center justify-center gap-2 transition-colors"><Trash2 size={16} /> Delete</button>
+                  <button
+                    onClick={async () => {
+                      if (!selectedDoc) return;
+                      try {
+                        await api.archiveDocument(selectedDoc.id, !selectedDoc.archived);
+                        toast.success(`Document ${selectedDoc.archived ? "unarchived" : "archived"}`);
+                        // Refresh list
+                        loadDocuments();
+                        setSelectedDoc(null);
+                      } catch (e) {
+                        toast.error("Failed to update status");
+                      }
+                    }}
+                    className="flex-1 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 rounded-xl text-xs font-bold uppercase shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    {selectedDoc.archived ? <UploadCloud size={16} /> : <Trash2 size={16} />}
+                    {selectedDoc.archived ? "Unarchive" : "Archive"}
+                  </button>
+                  <button onClick={() => { setDocToDelete(selectedDoc.id); setShowDeleteConfirm(true); }} className="flex-1 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl text-xs font-bold uppercase shadow-sm flex items-center justify-center gap-2 transition-colors"><X size={16} /> Delete</button>
                 </div>
               </motion.div>
             )}

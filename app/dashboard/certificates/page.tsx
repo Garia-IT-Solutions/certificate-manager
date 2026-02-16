@@ -1035,7 +1035,7 @@ export default function CertificatesPage() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
-              Certificate<span className="font-bold text-orange-500">Vault</span>
+              Certificate<span className="font-bold text-[#FF3300]">Vault</span>
             </h1>
             <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
               Secure Certificate Storage & Compliance

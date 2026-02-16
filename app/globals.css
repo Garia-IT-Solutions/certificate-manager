@@ -186,3 +186,9 @@
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;
 }
+
+/* --- HIDE DEFAULT BROWSER PASSWORD TOGGLE --- */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}

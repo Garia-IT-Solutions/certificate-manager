@@ -388,14 +388,16 @@ export default function LoginPage() {
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Lock size={16} /></div>
                         <input
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           required
                           value={signupPass}
                           onChange={(e) => setSignupPass(e.target.value)}
                           placeholder="Create password"
                           className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium outline-none focus:border-orange-500 transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 font-mono"
                         />
-                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"><Eye size={14} /></button>
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200">
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
                       </div>
                     </div>
 
@@ -580,8 +582,7 @@ export default function LoginPage() {
 
           <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
             <div className="flex items-center gap-4 text-zinc-500 font-mono">
-              <span className="flex items-center gap-1.5"></span>
-              <span className="flex items-center gap-1.5"></span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap opacity-60">Powered by Garia IT Solutions™ {new Date().getFullYear()}</span>
             </div>
             <LiveTime />
           </div>
