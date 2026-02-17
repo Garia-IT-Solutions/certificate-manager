@@ -13,22 +13,45 @@ interface ResumeFormProps {
     errors: Record<string, boolean>;
 }
 
-const InputGroup = ({ label, value, onChange, type = "text", className = "", hasError = false }: any) => (
-    <div className={className}>
-        <label className={cn("text-[10px] uppercase font-bold mb-1 flex items-center gap-1", hasError ? "text-red-500" : "text-zinc-500")}>
-            {label} {hasError && <AlertCircle size={10} />}
-        </label>
-        <input
-            type={type}
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            className={cn(
-                "w-full p-2.5 rounded-lg border bg-white dark:bg-black text-xs font-medium outline-none transition-all text-zinc-900 dark:text-zinc-100",
-                hasError ? "border-red-500 ring-1 ring-red-500/50" : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
-            )}
-        />
-    </div>
-);
+import { DatePicker } from "@/components/ui/date-picker";
+
+const InputGroup = ({ label, value, onChange, type = "text", className = "", hasError = false }: any) => {
+    if (type === "date") {
+        return (
+            <div className={className}>
+                <label className={cn("text-[10px] uppercase font-bold mb-1 flex items-center gap-1", hasError ? "text-red-500" : "text-zinc-500")}>
+                    {label} {hasError && <AlertCircle size={10} />}
+                </label>
+                <DatePicker
+                    date={value ? new Date(value) : undefined}
+                    setDate={(date) => onChange(date ? date.toLocaleDateString('en-CA') : "")}
+                    placeholder="Pick a date"
+                    className={cn(
+                        "w-full bg-white dark:bg-black border-zinc-200 dark:border-zinc-800",
+                        hasError && "border-red-500 ring-1 ring-red-500/50"
+                    )}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className={className}>
+            <label className={cn("text-[10px] uppercase font-bold mb-1 flex items-center gap-1", hasError ? "text-red-500" : "text-zinc-500")}>
+                {label} {hasError && <AlertCircle size={10} />}
+            </label>
+            <input
+                type={type}
+                value={value || ""}
+                onChange={(e) => onChange(e.target.value)}
+                className={cn(
+                    "w-full p-2.5 rounded-lg border bg-white dark:bg-black text-xs font-medium outline-none transition-all text-zinc-900 dark:text-zinc-100",
+                    hasError ? "border-red-500 ring-1 ring-red-500/50" : "border-zinc-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
+                )}
+            />
+        </div>
+    );
+};
 
 const ImageUpload = ({ label, value, onChange, className = "" }: { label: string; value?: string; onChange: (base64: string) => void; className?: string }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

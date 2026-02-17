@@ -61,7 +61,7 @@ export default function RootLayout({
             <Toaster />
           </SidebarProvider>
 
-          <div className="fixed bottom-1 left-0 right-0 z-50 flex justify-center pointer-events-none pb-2">
+          <div className="flex justify-center py-4 w-full">
             <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono font-medium opacity-60">
               Powered by Garia IT Solutions™ {new Date().getFullYear()}
             </span>

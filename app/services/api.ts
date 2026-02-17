@@ -9,6 +9,15 @@ const getHeaders = () => {
     };
 };
 
+export interface Category {
+    id: number;
+    label: string;
+    color: string;
+    icon: string;
+    pattern?: string;
+    is_system: boolean;
+}
+
 export const api = {
     // AUTH
     login: async (credentials: any) => {
@@ -60,7 +69,11 @@ export const api = {
             headers: getHeaders(),
             body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error("Failed to create certificate");
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            console.error("Certificate creation failed", error);
+            throw new Error(error.detail || "Failed to create certificate");
+        }
         return res.json();
     },
 
@@ -186,6 +199,44 @@ export const api = {
         });
         if (!res.ok) throw new Error("Failed to update profile");
         return res.json();
+    },
+
+    // Categories
+    getCategories: async (scope: string = "document"): Promise<Category[]> => {
+        const response = await fetch(`${API_URL}/categories?scope=${scope}`, {
+            headers: getHeaders(),
+        });
+        if (!response.ok) throw new Error("Failed to fetch categories");
+        return response.json();
+    },
+
+    createCategory: async (data: { label: string; color: string; icon: string; pattern?: string; scope?: string }) => {
+        const response = await fetch(`${API_URL}/categories`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error("Failed to create category");
+        return response.json();
+    },
+
+    updateCategory: async (id: number, data: { label?: string; color?: string; icon?: string }) => {
+        const response = await fetch(`${API_URL}/categories/${id}`, {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error("Failed to update category");
+        return response.json();
+    },
+
+    deleteCategory: async (id: number) => {
+        const response = await fetch(`${API_URL}/categories/${id}`, {
+            method: "DELETE",
+            headers: getHeaders(),
+        });
+        if (!response.ok) throw new Error("Failed to delete category");
+        return response.json();
     },
 
     // DASHBOARD

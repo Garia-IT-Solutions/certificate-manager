@@ -582,7 +582,6 @@ export default function LoginPage() {
 
           <div className="bg-zinc-50/80 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between text-[10px]">
             <div className="flex items-center gap-4 text-zinc-500 font-mono">
-              <span className="flex items-center gap-1.5 whitespace-nowrap opacity-60">Powered by Garia IT Solutions™ {new Date().getFullYear()}</span>
             </div>
             <LiveTime />
           </div>

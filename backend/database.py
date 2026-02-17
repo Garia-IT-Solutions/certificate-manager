@@ -1,8 +1,25 @@
 import sqlite3
+import os
+import sys
+import platform
 from sqlite3 import Connection
 from backend.utils.security import get_password_hash
 
-DATABASE_NAME = "certmanager.db"
+def get_db_path():
+    # Get the directory of the current file (backend/database.py)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go one level up to get to project root (marine-engineer-portal)
+    root_dir = os.path.dirname(current_dir)
+    
+    # Store in a 'data' directory in project root
+    data_dir = os.path.join(root_dir, "data")
+    
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        
+    return os.path.join(data_dir, "certmanager.db")
+
+DATABASE_NAME = get_db_path()
 
 def get_db_connection() -> Connection:
     conn = sqlite3.connect(DATABASE_NAME)
@@ -193,6 +210,62 @@ def init_db():
             INSERT INTO profiles (first_name, last_name, email, phone, job_title, bio, skills, password_hash)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', ('John', 'Doe', 'john.doe@example.com', '+1 (555) 0123', 'Marine Engineer', 'Experienced marine engineer.', '["Safety Management", "Navigation", "First Aid"]', default_password))
+
+    
+    # Create Document Categories Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS document_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            color TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            pattern TEXT,
+            user_id INTEGER,
+            is_system BOOLEAN DEFAULT 0,
+            scope TEXT DEFAULT 'document'
+        )
+    ''')
+
+    # Migrate document_categories - add scope column if missing
+    cursor.execute("PRAGMA table_info(document_categories)")
+    dc_columns = {col[1] for col in cursor.fetchall()}
+    if 'scope' not in dc_columns:
+        try:
+            cursor.execute("ALTER TABLE document_categories ADD COLUMN scope TEXT DEFAULT 'document'")
+            print("Migrated: Added column scope to document_categories")
+        except Exception as e:
+            print(f"Migration error for scope: {e}")
+
+    # Seed Default Categories if empty (for documents)
+    cursor.execute("SELECT count(*) FROM document_categories WHERE scope = 'document'")
+    if cursor.fetchone()[0] == 0:
+        default_categories = [
+            ('Medical', 'emerald', 'Stethoscope', 'medical|health|fever', 1, 1, 'document'),
+            ('Safety', 'orange', 'Anchor', 'safety|stcw|fire|security', 1, 1, 'document'),
+            ('Travel', 'blue', 'Plane', 'passport|visa|book|seaman|travel', 1, 1, 'document'),
+            ('Tech', 'purple', 'Wrench', 'technical|engineering|mechanical|repair', 1, 1, 'document')
+        ]
+        cursor.executemany('''
+            INSERT INTO document_categories (label, color, icon, pattern, user_id, is_system, scope)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', default_categories)
+        print("Seeded default document categories")
+
+    # Seed Default Categories if empty (for certificates)
+    cursor.execute("SELECT count(*) FROM document_categories WHERE scope = 'certificate'")
+    if cursor.fetchone()[0] == 0:
+        cert_categories = [
+            ('CoC', 'orange', 'Award', 'coc|competency|certificate of competency', 1, 1, 'certificate'),
+            ('STCW', 'blue', 'Anchor', 'stcw|training|safety', 1, 1, 'certificate'),
+            ('Medical', 'emerald', 'Stethoscope', 'medical|health', 1, 1, 'certificate'),
+            ('License', 'purple', 'FileText', 'license|endorsement', 1, 1, 'certificate'),
+            ('Other', 'zinc', 'File', 'other|misc', 1, 1, 'certificate')
+        ]
+        cursor.executemany('''
+            INSERT INTO document_categories (label, color, icon, pattern, user_id, is_system, scope)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', cert_categories)
+        print("Seeded default certificate categories")
 
     conn.commit()
     conn.close()

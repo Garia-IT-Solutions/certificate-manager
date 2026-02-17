@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { api } from "@/app/services/api";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { api, Category } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -28,11 +28,18 @@ import {
   Sparkles,
   Calendar as CalendarIcon,
   LayoutGrid,
-  Clock
+  Clock,
+  Briefcase,
+  Cpu,
+  Globe,
+  Award,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Switch } from "@/components/ui/switch";
+import { CategoryManager } from "@/app/components/CategoryManager";
 
 interface Document {
   id: number;
@@ -48,44 +55,37 @@ interface Document {
   fileBlob?: string; // Base64 data if needed
   docSize?: number; // Size in bytes from backend
   archived: boolean;
+  category?: string; // category ID/label
 }
 
-const CATEGORY_CONFIG = [
-  { id: 'med', label: 'Medical', icon: Stethoscope, color: 'emerald', pattern: /medical|health|fever/i },
-  { id: 'saf', label: 'Safety', icon: Anchor, color: 'orange', pattern: /safety|stcw|fire|security/i },
-  { id: 'trv', label: 'Travel', icon: Plane, color: 'blue', pattern: /passport|visa|book|seaman|travel/i },
-  { id: 'tec', label: 'Tech', icon: Wrench, color: 'purple', pattern: /technical|engineering|mechanical|repair/i } // Default tech
-];
+const ICONS: Record<string, any> = {
+  "Stethoscope": Stethoscope,
+  "Anchor": Anchor,
+  "Plane": Plane,
+  "Wrench": Wrench,
+  "FileText": FileText,
+  "Briefcase": Briefcase,
+  "Cpu": Cpu,
+  "Globe": Globe,
+  "Award": Award,
+  "BookOpen": BookOpen
+};
 
-function CategoryModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
+function CategoryModal({ isOpen, onClose, onSelect, activeCategory, counts, categories }: {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (id: string) => void;
   activeCategory: string | null;
   counts: Record<string, number>;
+  categories: Category[];
 }) {
   const [search, setSearch] = useState("");
 
   const filteredCategories = useMemo(() => {
-    // 1. Get predefined configs that match search
-    const configs = CATEGORY_CONFIG.filter(cat =>
+    return categories.filter(cat =>
       cat.label.toLowerCase().includes(search.toLowerCase())
     );
-
-    // 2. Identify dynamic categories from counts (keys that aren't in configs)
-    const dynamicKeys = Object.keys(counts).filter(k => !CATEGORY_CONFIG.find(c => c.id === k));
-
-    // 3. Filter dynamic categories by search
-    const dynamicMatches = dynamicKeys.filter(k => k.toLowerCase().includes(search.toLowerCase())).map(k => ({
-      id: k,
-      label: k,
-      icon: FileText, // Default icon
-      color: 'zinc', // Default color
-      pattern: null
-    }));
-
-    return [...configs, ...dynamicMatches];
-  }, [search, counts]);
+  }, [search, categories]);
 
   if (!isOpen) return null;
 
@@ -121,13 +121,43 @@ function CategoryModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {filteredCategories.map((cat) => {
-              const isActive = activeCategory === cat.id;
-              const count = counts[cat.id] || 0;
+              const isActive = activeCategory === cat.label; // Use label for now as ID might be mixed
+              const count = counts[cat.label] || 0;
+              const IconComp = ICONS[cat.icon] || FileText;
+
+              // Dynamic colors based on config
+              const activeBg = cat.color === 'emerald' ? "bg-emerald-500 text-white" :
+                cat.color === 'orange' ? "bg-orange-500 text-white" :
+                  cat.color === 'blue' ? "bg-blue-500 text-white" :
+                    cat.color === 'purple' ? "bg-purple-500 text-white" :
+                      cat.color === 'rose' ? "bg-rose-500 text-white" :
+                        cat.color === 'amber' ? "bg-amber-500 text-white" :
+                          cat.color === 'indigo' ? "bg-indigo-500 text-white" :
+                            "bg-zinc-500 text-white";
+
+              const activeText = cat.color === 'emerald' ? "text-emerald-600 dark:text-emerald-500" :
+                cat.color === 'orange' ? "text-orange-600 dark:text-orange-500" :
+                  cat.color === 'blue' ? "text-blue-600 dark:text-blue-500" :
+                    cat.color === 'purple' ? "text-purple-600 dark:text-purple-500" :
+                      cat.color === 'rose' ? "text-rose-600 dark:text-rose-500" :
+                        cat.color === 'amber' ? "text-amber-600 dark:text-amber-500" :
+                          cat.color === 'indigo' ? "text-indigo-600 dark:text-indigo-500" :
+                            "text-zinc-600 dark:text-zinc-500";
+
+              const activeBgSoft = cat.color === 'emerald' ? "bg-emerald-100 dark:bg-emerald-900/20" :
+                cat.color === 'orange' ? "bg-orange-100 dark:bg-orange-900/20" :
+                  cat.color === 'blue' ? "bg-blue-100 dark:bg-blue-900/20" :
+                    cat.color === 'purple' ? "bg-purple-100 dark:bg-purple-900/20" :
+                      cat.color === 'rose' ? "bg-rose-100 dark:bg-rose-900/20" :
+                        cat.color === 'amber' ? "bg-amber-100 dark:bg-amber-900/20" :
+                          cat.color === 'indigo' ? "bg-indigo-100 dark:bg-indigo-900/20" :
+                            "bg-zinc-100 dark:bg-zinc-900";
+
 
               return (
                 <button
                   key={cat.id}
-                  onClick={() => onSelect(cat.id)}
+                  onClick={() => onSelect(cat.label)}
                   className={cn(
                     "p-4 rounded-xl border flex flex-col gap-3 transition-all cursor-pointer text-left group hover:border-orange-500",
                     isActive
@@ -140,11 +170,9 @@ function CategoryModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
                       "p-2 rounded-lg transition-colors",
                       isActive
                         ? "bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-500"
-                        : (cat as any).color === 'zinc'
-                          ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-700"
-                          : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-orange-500"
+                        : cn(activeBgSoft, activeText)
                     )}>
-                      <cat.icon size={20} />
+                      <IconComp size={20} />
                     </div>
                     <span className={cn(
                       "text-xs font-bold font-mono py-0.5 px-2 rounded-md",
@@ -196,7 +224,7 @@ function DeleteConfirmationDialog({ isOpen, fileName, onConfirm, onCancel }: { i
   );
 }
 
-function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: () => void; onUpload: (file: File, customName: string, docType: string, expiryDate: string | null, issuer: string) => void; }) {
+function UploadModal({ isOpen, onClose, onUpload, categories }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [customName, setCustomName] = useState("");
@@ -235,19 +263,29 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
     setTimeout(() => { onUpload(file, customName, finalDocType, finalExpiry, issuer); onClose(); }, 1500);
   };
 
-  const CATEGORIES = [
-    { id: "Medical Certificate", label: "Medical", icon: Stethoscope, activeClass: "bg-emerald-500 border-emerald-400" },
-    { id: "STCW Certificate", label: "Safety", icon: Anchor, activeClass: "bg-orange-500 border-orange-400" },
-    { id: "Travel Document", label: "Travel", icon: Plane, activeClass: "bg-blue-500 border-blue-400" },
-    { id: "Technical", label: "Tech", icon: Wrench, activeClass: "bg-purple-500 border-purple-400" },
-    { id: "Custom", label: "Custom", icon: Plus, activeClass: "bg-zinc-500 border-zinc-400" },
+  // Prepare categories for display
+  const displayCategories = [
+    ...categories.map((c: any) => ({
+      id: c.label,
+      label: c.label,
+      icon: ICONS[c.icon] || FileText,
+      activeClass: c.color === 'emerald' ? "bg-emerald-500 border-emerald-400" :
+        c.color === 'orange' ? "bg-orange-500 border-orange-400" :
+          c.color === 'blue' ? "bg-blue-500 border-blue-400" :
+            c.color === 'purple' ? "bg-purple-500 border-purple-400" :
+              c.color === 'rose' ? "bg-rose-500 border-rose-400" :
+                c.color === 'amber' ? "bg-amber-500 border-amber-400" :
+                  c.color === 'indigo' ? "bg-indigo-500 border-indigo-400" :
+                    "bg-zinc-500 border-zinc-400"
+    })),
+    { id: "Custom", label: "Custom", icon: Plus, activeClass: "bg-zinc-500 border-zinc-400" }
   ];
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-zinc-950 rounded-[2rem] border border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-zinc-950 rounded-[2rem] border border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 pb-2 flex justify-between items-center z-10 shrink-0">
           <div>
             <h3 className="text-xl font-bold text-white tracking-tight">Digital Intake</h3>
@@ -258,34 +296,32 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
           </button>
         </div>
         <div className="p-6 pt-4 space-y-6 overflow-y-auto custom-scrollbar">
-          <AnimatePresence mode="wait">
-            {!file ? (
-              <motion.div key="dropzone" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => fileInputRef.current?.click()} className="group relative h-40 rounded-2xl border-2 border-dashed border-zinc-800 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 overflow-hidden">
-                <div className="p-4 bg-zinc-900 rounded-full group-hover:scale-110 transition-transform shadow-inner"><UploadCloud size={28} className="text-zinc-500 group-hover:text-orange-500 transition-colors" /></div>
-                <div className="text-center z-10"><p className="text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">Click to Scan Document</p><p className="text-[10px] text-zinc-500 mt-1">PDF, JPG, PNG (Max 10MB)</p></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-500/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 pointer-events-none" />
-              </motion.div>
-            ) : (
-              <motion.div key="filecard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative h-40 rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center p-4 sm:p-6 gap-4 sm:gap-5 group">
-                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-black border border-zinc-800 flex items-center justify-center shrink-0 relative overflow-hidden">
-                  {previewUrl ? <img src={previewUrl} alt="preview" className="h-full w-full object-cover opacity-80" /> : <FileIcon size={32} className="text-zinc-600" />}
-                  <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1"><span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider">Ready to Upload</span><button onClick={() => setFile(null)} className="text-zinc-500 hover:text-red-500 transition-colors"><X size={14} /></button></div>
-                  <p className="text-sm font-bold text-white truncate mb-1">{file.name}</p>
-                  <p className="text-[10px] font-mono text-zinc-400">{(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type.split('/')[1].toUpperCase()}</p>
-                </div>
-                <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-white/5 blur-3xl rounded-full pointer-events-none" />
-              </motion.div>
-            )}
-          </AnimatePresence>
           <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+          {!file ? (
+            <div key="dropzone" onClick={() => fileInputRef.current?.click()} className="group relative h-40 rounded-2xl border-2 border-dashed border-zinc-800 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 overflow-hidden">
+              <div className="p-4 bg-zinc-900 rounded-full group-hover:scale-110 transition-transform shadow-inner"><UploadCloud size={28} className="text-zinc-500 group-hover:text-orange-500 transition-colors" /></div>
+              <div className="text-center z-10"><p className="text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">Click to Scan Document</p><p className="text-[10px] text-zinc-500 mt-1">PDF, JPG, PNG (Max 10MB)</p></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-500/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 pointer-events-none" />
+            </div>
+          ) : (
+            <div key="filecard" className="relative h-40 rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center p-4 sm:p-6 gap-4 sm:gap-5 group">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-black border border-zinc-800 flex items-center justify-center shrink-0 relative overflow-hidden">
+                {previewUrl ? <img src={previewUrl} alt="preview" className="h-full w-full object-cover opacity-80" /> : <FileIcon size={32} className="text-zinc-600" />}
+                <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-1"><span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider">Ready to Upload</span><button onClick={() => setFile(null)} className="text-zinc-500 hover:text-red-500 transition-colors"><X size={14} /></button></div>
+                <p className="text-sm font-bold text-white truncate mb-1">{file.name}</p>
+                <p className="text-[10px] font-mono text-zinc-400">{(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type.split('/')[1].toUpperCase()}</p>
+              </div>
+              <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-white/5 blur-3xl rounded-full pointer-events-none" />
+            </div>
+          )}
           <div className={cn("space-y-5 transition-all duration-500", !file ? "opacity-30 pointer-events-none blur-[2px]" : "opacity-100 blur-0")}>
             <div>
               <label className="text-[10px] font-bold uppercase text-zinc-500 mb-3 block px-1">Classify Document</label>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {CATEGORIES.map((cat) => (
+                {displayCategories.map((cat: any) => (
                   <button key={cat.id} onClick={() => setDocType(cat.id)} className={cn("relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-200 overflow-hidden group", docType === cat.id ? cn(cat.activeClass, "text-white shadow-lg scale-[1.02]") : "bg-zinc-900/50 border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-500")}>
                     <cat.icon size={18} className="relative z-10 transition-transform group-hover:scale-110" />
                     <span className="text-[9px] font-bold uppercase tracking-wide relative z-10">{cat.label}</span>
@@ -293,6 +329,7 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
                   </button>
                 ))}
               </div>
+
             </div>
             {docType === 'Custom' && (
               <div className="relative group">
@@ -344,30 +381,33 @@ function UploadModal({ isOpen, onClose, onUpload }: { isOpen: boolean; onClose: 
                   </div>
                 </div>
                 <div className="relative group">
-                  <input
-                    type="date"
-                    value={expiryDate}
+                  <DatePicker
+                    date={expiryDate ? new Date(expiryDate) : undefined}
+                    setDate={(date) => setExpiryDate(date ? date.toLocaleDateString('en-CA') : "")}
+                    placeholder="Pick a date"
                     disabled={isUnlimited}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    className={cn(
-                      "w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium outline-none transition-colors",
-                      isUnlimited ? "text-zinc-600 cursor-not-allowed bg-zinc-900/50" : "text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50",
-                      "dark:[color-scheme:dark]"
-                    )}
+                    className={cn(isUnlimited && "opacity-50 cursor-not-allowed")}
                   />
-                  {!expiryDate && !isUnlimited && <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600"><CalendarIcon size={14} /></div>}
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="p-6 pt-2 bg-zinc-900/30 flex gap-3 z-10 shrink-0 border-t border-zinc-800/50 mt-4">
-          <button onClick={onClose} disabled={isUploading} className="flex-1 py-3.5 rounded-xl text-xs font-bold uppercase text-zinc-500 hover:bg-zinc-900 hover:text-white transition-colors">Cancel</button>
-          <button onClick={handleSubmit} disabled={!file || !customName || isUploading || (!isUnlimited && !expiryDate)} className="flex-[2] py-3.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
-            {isUploading ? (<><div className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Encrypting...</>) : (<><Check size={16} /> Confirm Upload</>)}
+        <div className="p-6 pt-4 bg-zinc-900/50 flex items-center justify-end gap-3 z-10 shrink-0 border-t border-zinc-800/50 mt-auto">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl font-bold text-xs uppercase text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+          >
+            <UploadCloud size={16} /> Upload Document
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -409,12 +449,23 @@ function PDFViewerModal({ isOpen, fileUrl, fileName, onClose }: { isOpen: boolea
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     loadDocuments();
+    loadCategories();
   }, [showArchived]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await api.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to load categories", error);
+    }
+  };
 
   const getMimeType = (b64: string) => {
     if (b64.startsWith('JVBERi0')) return 'application/pdf';
@@ -547,7 +598,9 @@ export default function DocumentsPage() {
   const [docToDelete, setDocToDelete] = useState<number | null>(null);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [filter, setFilter] = useState("all");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -561,66 +614,95 @@ export default function DocumentsPage() {
   });
 
   const highlightedCategory = useMemo(() => {
-    if (activeCategory) return activeCategory;
+    if (activeCategory) return activeCategory; // returns label
     if (selectedDoc) {
       const type = selectedDoc.type.toLowerCase();
       // Try to match specific patterns first
-      for (const cat of CATEGORY_CONFIG) {
-        if (cat.pattern && cat.pattern.test(type)) return cat.id;
+      for (const cat of categories) {
+        if (cat.pattern) {
+          try {
+            // pattern from DB is string, need to convert to RegExp
+            // Note: DB pattern is string w/o flags. We assume case insensitive.
+            const regex = new RegExp(cat.pattern, 'i');
+            if (regex.test(type)) return cat.label;
+          } catch (e) {
+            // ignore invalid regex
+          }
+        }
       }
-      // If no pattern matches, the type itself is the category ID (dynamic)
+      // If no pattern matches, the type itself might be the category label
       return selectedDoc.type;
     }
     return null;
-  }, [activeCategory, selectedDoc]);
+  }, [activeCategory, selectedDoc, categories]);
 
   const filteredDocs = useMemo(() => {
     return documents.filter(doc => {
       const matchesSearch = doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()) || doc.type.toLowerCase().includes(searchTerm.toLowerCase());
-      if (!matchesSearch) return false;
+      const matchesFilter = filter === "all" || doc.status === filter;
+
+      if (!matchesSearch || !matchesFilter) return false;
 
       if (activeCategory) {
-        const config = CATEGORY_CONFIG.find(c => c.id === activeCategory);
+        const config = categories.find(c => c.label === activeCategory);
         if (config) {
           if (config.pattern) {
-            return config.pattern.test(doc.type.toLowerCase());
+            try {
+              const regex = new RegExp(config.pattern, 'i');
+              return regex.test(doc.type.toLowerCase()) || doc.type === activeCategory;
+            } catch (e) {
+              return doc.type === activeCategory;
+            }
           }
+          return doc.type === activeCategory;
         }
-        // If active category is not in config, it's a dynamic category (exact match on docType)
-        // OR if it's 'tec' but falling back... wait.
-        // If config exists but pattern is null? We removed that.
-
-        // If it's a dynamic category, we expect doc.type to match activeCategory
-        // BUT activeCategory is the ID. For dynamic, ID = docType.
-        if (!config && doc.type !== activeCategory) return false;
-
-        // If config AND pattern check didn't return, check if it DOESN'T match others?
-        // No, we are being strict now.
+        // If active category is not in config (deleted?), match exact type
+        return doc.type === activeCategory;
       }
       return true;
     });
-  }, [searchTerm, documents, activeCategory]);
+  }, [searchTerm, filter, documents, activeCategory, categories]);
 
   const stats = useMemo(() => {
     const counts: Record<string, number> = {};
     const matchedDocIds = new Set<number>();
 
     // 1. Count specific patterns from config
-    CATEGORY_CONFIG.forEach(cat => {
+    categories.forEach(cat => {
       if (!cat.pattern) return;
-      const matches = documents.filter(doc => cat.pattern!.test(doc.type.toLowerCase()));
-      counts[cat.id] = matches.length;
-      matches.forEach(d => matchedDocIds.add(d.id));
+      try {
+        const regex = new RegExp(cat.pattern, 'i');
+        const matches = documents.filter(doc => regex.test(doc.type.toLowerCase()));
+
+        // Add to count. Note: A doc might match multiple categories if patterns overlap. 
+        // We should probably assign to FIRST match or combine?
+        // Existing logic seemed to allow overlap in counts but matchedDocIds prevents double counting if we iterate docs? 
+        // Actually previous logic iterated config.
+
+        // Let's stick to: if it matches pattern, it's counted for that category.
+        counts[cat.label] = (counts[cat.label] || 0) + matches.length;
+        matches.forEach(d => matchedDocIds.add(d.id));
+      } catch (e) { }
     });
 
-    // 2. Find documents that didn't match any config -> Dynamic Categories
+    // 2. Find documents that didn't match any config -> Dynamic Categories (or if they match exact label)
     documents.forEach(doc => {
+      // If it wasn't caught by a pattern, OR if it simply has a type that matches a category label exactly
+      // Actually, if we have a category "Technical" and doc type "Technical", it matches.
+
+      // The logic here is: display counts for ALL categories, plus any "orphaned" types.
+
+      // If a doc was already counted via pattern, good.
+      // But what if it wasn't?
       if (!matchedDocIds.has(doc.id)) {
-        // This doc belongs to a dynamic category
-        // Use doc.type as the key
-        const key = doc.type; // e.g. "Insurance"
+        const key = doc.type;
         counts[key] = (counts[key] || 0) + 1;
       }
+    });
+
+    // Ensure all cats have at least 0
+    categories.forEach(cat => {
+      if (!counts[cat.label]) counts[cat.label] = 0;
     });
 
     return {
@@ -628,7 +710,7 @@ export default function DocumentsPage() {
       EXPIRING: documents.filter(d => d.status === 'EXPIRING').length,
       categorized: counts
     };
-  }, [documents]);
+  }, [documents, categories]);
 
   const handleUpload = async (file: File, customName: string, docType: string, expiryDate: string | null, issuer: string) => {
     try {
@@ -790,53 +872,64 @@ export default function DocumentsPage() {
                     {activeCategory ? "Clear Filter" : "Distribution"}
                   </span>
                 </button>
+                {categories.length > 4 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsCategoryModalOpen(true); }}
+                    className="absolute top-4 sm:top-5 right-4 sm:right-5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all z-20"
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-wide">View All</span>
+                  </button>
+                )}
                 <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-4 pt-10 pb-1">
-                  {CATEGORY_CONFIG.slice(0, 3).map((cat) => {
-                    const isSelected = highlightedCategory === cat.id;
-                    const count = stats.categorized[cat.id] || 0;
+
+                  {categories.slice(0, 4).map((cat) => {
+                    const isSelected = highlightedCategory === cat.label;
+                    const count = stats.categorized[cat.label] || 0;
+                    const IconComp = ICONS[cat.icon] || FileText;
 
                     // Dynamic colors based on config
                     const activeBg = cat.color === 'emerald' ? "bg-emerald-500 text-white" :
                       cat.color === 'orange' ? "bg-orange-500 text-white" :
                         cat.color === 'blue' ? "bg-blue-500 text-white" :
-                          "bg-purple-500 text-white";
+                          cat.color === 'purple' ? "bg-purple-500 text-white" :
+                            cat.color === 'rose' ? "bg-rose-500 text-white" :
+                              cat.color === 'amber' ? "bg-amber-500 text-white" :
+                                cat.color === 'indigo' ? "bg-indigo-500 text-white" :
+                                  "bg-zinc-500 text-white";
 
-                    const activeText = cat.color === 'emerald' ? "text-emerald-500" :
-                      cat.color === 'orange' ? "text-orange-500" :
-                        cat.color === 'blue' ? "text-blue-500" :
-                          "text-purple-500";
+                    const activeText = cat.color === 'emerald' ? "text-emerald-600 dark:text-emerald-500" :
+                      cat.color === 'orange' ? "text-orange-600 dark:text-orange-500" :
+                        cat.color === 'blue' ? "text-blue-600 dark:text-blue-500" :
+                          cat.color === 'purple' ? "text-purple-600 dark:text-purple-500" :
+                            cat.color === 'rose' ? "text-rose-600 dark:text-rose-500" :
+                              cat.color === 'amber' ? "text-amber-600 dark:text-amber-500" :
+                                cat.color === 'indigo' ? "text-indigo-600 dark:text-indigo-500" :
+                                  "text-zinc-600 dark:text-zinc-500";
 
                     return (
-                      <button key={cat.id} onClick={() => setActiveCategory(prev => prev === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
-                        <div className={cn("p-1.5 rounded-xl transition-all duration-300 shadow-sm", isSelected ? cn(activeBg, "scale-110 shadow-lg") : "bg-zinc-50 dark:bg-zinc-900 text-zinc-300 dark:text-zinc-600 hover:scale-105")}>
-                          <cat.icon size={16} strokeWidth={2.5} className="sm:w-[20px] sm:h-[20px]" />
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(activeCategory === cat.label ? null : cat.label)}
+                        className={cn(
+                          "flex items-center gap-3 p-2 rounded-xl transition-all text-left relative overflow-hidden group/item",
+                          isSelected ? "bg-zinc-100 dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800" : "hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                        )}
+                      >
+                        <div className={cn(
+                          "p-2 rounded-lg transition-colors shrink-0",
+                          isSelected ? activeBg : "bg-zinc-100 dark:bg-zinc-900 text-zinc-400 group-hover/item:text-zinc-600 dark:group-hover/item:text-zinc-300"
+                        )}>
+                          <IconComp size={16} />
                         </div>
-                        <div className="text-center">
-                          <span className={cn("block text-sm font-bold leading-none", isSelected ? activeText : "text-zinc-900 dark:text-white")}>{count}</span>
-                          <span className={cn("block text-[8px] font-bold uppercase tracking-wider transition-colors truncate max-w-[64px]", isSelected ? activeText : "text-zinc-400")}>{cat.label}</span>
+                        <div className="min-w-0">
+                          <p className={cn("text-xs font-bold truncate transition-colors", isSelected ? "text-zinc-900 dark:text-white" : "text-zinc-500 group-hover/item:text-zinc-700 dark:group-hover/item:text-zinc-300")}>
+                            {cat.label}
+                          </p>
+                          <p className="text-[10px] font-mono text-zinc-400">{count} docs</p>
                         </div>
                       </button>
                     );
                   })}
-
-                  {/* Dynamic 4th Slot: Either the 4th category or View All */}
-                  {CATEGORY_CONFIG.length > 3 ? (
-                    <button onClick={() => setIsCategoryModalOpen(true)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
-                      <div className="p-2 rounded-2xl transition-all duration-300 shadow-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-400 hover:scale-105 hover:border-orange-500 hover:text-orange-500">
-                        <LayoutGrid size={16} strokeWidth={2.5} className="sm:w-[18px] sm:h-[18px]" />
-                      </div>
-                      <div className="text-center">
-                        <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-orange-500 transition-colors">View All</span>
-                      </div>
-                    </button>
-                  ) : (
-                    // If exactly or less than 3, we don't need this, but assuming logic maps 4th if exists
-                    CATEGORY_CONFIG[3] && (
-                      <button onClick={() => setActiveCategory(prev => prev === CATEGORY_CONFIG[3].id ? null : CATEGORY_CONFIG[3].id)} className="flex flex-col items-center gap-1.5 group/item w-full outline-none">
-                        {/* Rendering similar to map above... simplified for brevity since we know we have 4 currently */}
-                      </button>
-                    )
-                  )}
                 </div>
               </div>
 
@@ -857,9 +950,28 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <input type="text" placeholder="Search documents..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-12 pl-12 pr-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm outline-none focus:border-orange-500 transition-all shadow-sm" />
+            <div className="flex flex-col sm:flex-row gap-4 w-full">
+              <div className="relative flex-1 min-w-0 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-orange-500 transition-colors" size={16} />
+                <input type="text" placeholder="Search documents..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-12 pl-12 pr-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm outline-none focus:border-orange-500 transition-all shadow-sm" />
+              </div>
+
+              <div className="flex p-1 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar shrink-0 h-12 items-center">
+                {["all", "VALID", "EXPIRING"].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap h-9 flex items-center justify-center",
+                      filter === f
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-3 w-full">
@@ -958,11 +1070,21 @@ export default function DocumentsPage() {
                           <input value={editValues.issuedBy} onChange={e => setEditValues({ ...editValues, issuedBy: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
                         </div>
                         <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Issue Date</p>
-                          <input type="date" value={editValues.issueDate} onChange={e => setEditValues({ ...editValues, issueDate: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                          <DatePicker
+                            date={editValues.issueDate ? new Date(editValues.issueDate) : undefined}
+                            setDate={(date) => setEditValues({ ...editValues, issueDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                            placeholder="Pick a date"
+                          />
                         </div>
                         <div><p className="text-[10px] text-zinc-400 font-bold uppercase mb-1">Expiry Date</p>
                           <div className="flex gap-2 items-center">
-                            <input type="date" disabled={editValues.expiryDate === null} value={editValues.expiryDate || ""} onChange={e => setEditValues({ ...editValues, expiryDate: e.target.value })} className="w-full bg-white dark:bg-zinc-900 border border-orange-500 rounded px-2 py-1 text-xs font-bold" />
+                            <DatePicker
+                              date={editValues.expiryDate ? new Date(editValues.expiryDate) : undefined}
+                              setDate={(date) => setEditValues({ ...editValues, expiryDate: date ? date.toLocaleDateString('en-CA') : null })}
+                              placeholder="Pick a date"
+                              disabled={editValues.expiryDate === null}
+                              className={cn(editValues.expiryDate === null && "opacity-50 cursor-not-allowed")}
+                            />
                             <button onClick={() => setEditValues({ ...editValues, expiryDate: editValues.expiryDate ? null : new Date().toISOString().split('T')[0] })} className="text-[10px] uppercase font-bold text-orange-500 whitespace-nowrap">{editValues.expiryDate === null ? "Set Date" : "Unlimited"}</button>
                           </div>
                         </div>
@@ -1018,7 +1140,7 @@ export default function DocumentsPage() {
         </div>
       </main>
 
-      <AnimatePresence>{isUploadOpen && <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} onUpload={handleUpload} />}</AnimatePresence>
+      <AnimatePresence>{isUploadOpen && <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} onUpload={handleUpload} categories={categories} />}</AnimatePresence>
       <AnimatePresence>{showDeleteConfirm && docToDelete !== null && <DeleteConfirmationDialog isOpen={showDeleteConfirm} fileName={documents.find(d => d.id === docToDelete)?.fileName || ""} onConfirm={async () => {
         try {
           if (docToDelete) {
@@ -1041,9 +1163,32 @@ export default function DocumentsPage() {
             onSelect={(id) => { setActiveCategory(id); setIsCategoryModalOpen(false); }}
             activeCategory={activeCategory}
             counts={stats.categorized}
+            categories={categories}
           />
         )}
       </AnimatePresence>
+
+      <CategoryManager
+        isOpen={isCategoryManagerOpen}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        onCategoriesChange={loadCategories}
+      />
+
+      {/* Floating Action Button for Categories */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setIsCategoryManagerOpen(true)}
+          className="group h-12 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full flex items-center shadow-2xl transition-all duration-300 w-12 hover:w-[190px] overflow-hidden relative"
+          title="Manage Categories"
+        >
+          <div className="absolute left-0 w-12 h-12 flex items-center justify-center shrink-0">
+            <Edit2 size={20} />
+          </div>
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out whitespace-nowrap text-sm font-bold uppercase tracking-wide pl-12 pr-6">
+            Edit Categories
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

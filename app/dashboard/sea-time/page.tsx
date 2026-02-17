@@ -11,6 +11,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TiltCard } from "@/components/TiltCard";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 
 // User profile is fetched dynamically from the API
@@ -344,8 +345,24 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign On</label><input type="date" className="w-full bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300] text-zinc-600 dark:text-zinc-300" value={formData.signOn} onChange={(e) => setFormData({ ...formData, signOn: e.target.value })} /></div>
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign Off</label><input type="date" className="w-full bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300] text-zinc-600 dark:text-zinc-300" value={formData.signOff} onChange={(e) => setFormData({ ...formData, signOff: e.target.value })} /></div>
+                           <div>
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign On</label>
+                              <DatePicker
+                                 date={formData.signOn ? new Date(formData.signOn) : undefined}
+                                 setDate={(date) => setFormData({ ...formData, signOn: date ? date.toLocaleDateString('en-CA') : "" })}
+                                 placeholder="Sign On Date"
+                                 className="bg-white dark:bg-black w-full"
+                              />
+                           </div>
+                           <div>
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign Off</label>
+                              <DatePicker
+                                 date={formData.signOff ? new Date(formData.signOff) : undefined}
+                                 setDate={(date) => setFormData({ ...formData, signOff: date ? date.toLocaleDateString('en-CA') : "" })}
+                                 placeholder="Sign Off Date"
+                                 className="bg-white dark:bg-black w-full"
+                              />
+                           </div>
                         </div>
                      </div>
                   </div>
