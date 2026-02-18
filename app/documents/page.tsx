@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Download, Upload, FileText, Eye, Trash2, Search, Filter, X } from "lucide-react"
 import { PDFViewerPlaceholder } from "@/components/pdf-viewer-placeholder"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface Document {
   id: number
@@ -286,20 +287,18 @@ export default function DocumentsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="issueDate">Issue Date</Label>
-                    <Input
-                      id="issueDate"
-                      type="date"
-                      value={newDocument.issueDate}
-                      onChange={(e) => setNewDocument({ ...newDocument, issueDate: e.target.value })}
+                    <DatePicker
+                      date={newDocument.issueDate ? new Date(newDocument.issueDate) : undefined}
+                      setDate={(date) => setNewDocument({ ...newDocument, issueDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                      placeholder="Pick a date"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="validDate">Valid Until *</Label>
-                    <Input
-                      id="validDate"
-                      type="date"
-                      value={newDocument.validDate}
-                      onChange={(e) => setNewDocument({ ...newDocument, validDate: e.target.value })}
+                    <DatePicker
+                      date={newDocument.validDate ? new Date(newDocument.validDate) : undefined}
+                      setDate={(date) => setNewDocument({ ...newDocument, validDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                      placeholder="Pick a date"
                     />
                   </div>
                 </div>
@@ -373,20 +372,18 @@ export default function DocumentsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="edit-issueDate">Issue Date</Label>
-                      <Input
-                        id="edit-issueDate"
-                        type="date"
-                        defaultValue={editingDocument.issueDate}
-                        onChange={(e) => setEditingDocument({ ...editingDocument, issueDate: e.target.value })}
+                      <DatePicker
+                        date={editingDocument.issueDate ? new Date(editingDocument.issueDate) : undefined}
+                        setDate={(date) => setEditingDocument({ ...editingDocument, issueDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                        placeholder="Pick a date"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="edit-validDate">Valid Until</Label>
-                      <Input
-                        id="edit-validDate"
-                        type="date"
-                        defaultValue={editingDocument.validDate}
-                        onChange={(e) => setEditingDocument({ ...editingDocument, validDate: e.target.value })}
+                      <DatePicker
+                        date={editingDocument.validDate ? new Date(editingDocument.validDate) : undefined}
+                        setDate={(date) => setEditingDocument({ ...editingDocument, validDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                        placeholder="Pick a date"
                       />
                     </div>
                   </div>

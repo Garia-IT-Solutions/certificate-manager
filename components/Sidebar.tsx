@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
@@ -12,7 +12,8 @@ import {
   Award,
   Anchor,
   User,
-  Shield
+  Shield,
+  LogOut
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
 ];
 
 export function AppSidebar() {
+  const router = useRouter();
   const pathname = usePathname();
   const { openMobile, setOpenMobile } = useSidebar();
   const [userName, setUserName] = useState("Cpt. User");
@@ -57,6 +59,12 @@ export function AppSidebar() {
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("remembered_user");
+    router.push("/login");
+  };
+
   return (
     <>
       {openMobile && (
@@ -82,8 +90,9 @@ export function AppSidebar() {
 
         <nav className="flex-1 space-y-2 px-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-
+            const isActive = item.href === "/dashboard"
+              ? pathname === "/dashboard" || pathname === "/dashboard/"
+              : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -126,6 +135,14 @@ export function AppSidebar() {
           <Shield size={16} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
           <span className="font-mono text-xs font-medium uppercase tracking-wide">Terms & Conditions</span>
         </Link>
+
+        <button
+          onClick={handleLogout}
+          className="mx-4 mb-2 flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-all rounded-lg group w-[calc(100%-2rem)] text-left"
+        >
+          <LogOut size={16} className="text-red-500 group-hover:text-red-400 transition-colors" />
+          <span className="font-mono text-xs font-medium uppercase tracking-wide">Log Out</span>
+        </button>
 
         <Link
           href="/dashboard/profile"

@@ -1,4 +1,7 @@
 import sqlite3
+import os
+import sys
+import platform
 from sqlite3 import Connection
 from backend.utils.security import get_password_hash
 
@@ -14,7 +17,6 @@ def init_db():
     cursor = conn.cursor()
     
     # Create Certificates Table
-    # Create Certificates Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS certificates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,6 +29,7 @@ def init_db():
             issueDate TEXT,
             uploadDate TEXT,
             hidden BOOLEAN,
+            archived BOOLEAN DEFAULT 0,
             user_id INTEGER
         )
     ''')
@@ -40,6 +43,21 @@ def init_db():
             print("Migrated: Added column user_id to certificates")
         except Exception as e:
             print(f"Migration error for certificates user_id: {e}")
+    
+    if 'archived' not in columns:
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN archived BOOLEAN DEFAULT 0")
+            print("Migrated: Added column archived to documents")
+        except Exception as e:
+            print(f"Migration error for documents archived: {e}")
+
+    # Check for issuedBy in documents and migrate
+    if 'issuedBy' not in columns:
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN issuedBy TEXT DEFAULT 'Self'")
+            print("Migrated: Added column issuedBy to documents")
+        except Exception as e:
+            print(f"Migration error for documents issuedBy: {e}")
 
     # Create Profiles Table
     cursor.execute('''
@@ -110,6 +128,7 @@ def init_db():
             dept TEXT DEFAULT 'ENGINE',
             mainEngine TEXT,
             bhp REAL,
+            kw REAL,
             torque REAL,
             dwt REAL,
             rank TEXT,
@@ -129,6 +148,18 @@ def init_db():
             print("Migrated: Added column dept to sea_time_logs")
         except Exception as e:
             print(f"Migration error for dept: {e}")
+
+    # Migrate sea_time_logs table - add kw column if missing
+    cursor.execute("PRAGMA table_info(sea_time_logs)")
+    stl_columns = {col[1] for col in cursor.fetchall()}
+    if 'kw' not in stl_columns:
+        try:
+            cursor.execute("ALTER TABLE sea_time_logs ADD COLUMN kw REAL")
+            print("Migrated: Added column kw to sea_time_logs")
+            # Populate kw from bhp (approx conversion) or torque if available
+            cursor.execute("UPDATE sea_time_logs SET kw = bhp * 0.7457 WHERE kw IS NULL AND bhp IS NOT NULL")
+        except Exception as e:
+            print(f"Migration error for kw: {e}")
     
     # Check if user_id column exists in sea_time_logs (migration)
     cursor.execute("PRAGMA table_info(sea_time_logs)")
@@ -193,6 +224,88 @@ def init_db():
             INSERT INTO profiles (first_name, last_name, email, phone, job_title, bio, skills, password_hash)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', ('John', 'Doe', 'john.doe@example.com', '+1 (555) 0123', 'Marine Engineer', 'Experienced marine engineer.', '["Safety Management", "Navigation", "First Aid"]', default_password))
+
+     # Create Document Categories Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS document_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            color TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            pattern TEXT,
+            user_id INTEGER,
+            is_system BOOLEAN DEFAULT 0,
+            scope TEXT DEFAULT 'document'
+        )
+    ''')
+
+    # Migrate document_categories - add scope column if missing
+    cursor.execute("PRAGMA table_info(document_categories)")
+    dc_columns = {col[1] for col in cursor.fetchall()}
+    if 'scope' not in dc_columns:
+        try:
+            cursor.execute("ALTER TABLE document_categories ADD COLUMN scope TEXT DEFAULT 'document'")
+            print("Migrated: Added column scope to document_categories")
+        except Exception as e:
+            print(f"Migration error for scope: {e}")
+
+    # Seed Default Categories if empty (for documents)
+    cursor.execute("SELECT count(*) FROM document_categories WHERE scope = 'document'")
+    if cursor.fetchone()[0] == 0:
+        default_categories = [
+            ('Medical', 'emerald', 'Stethoscope', 'medical|health|fever', 1, 1, 'document'),
+            ('Safety', 'orange', 'Anchor', 'safety|stcw|fire|security', 1, 1, 'document'),
+            ('Travel', 'blue', 'Plane', 'passport|visa|book|seaman|travel', 1, 1, 'document'),
+            ('Tech', 'purple', 'Wrench', 'technical|engineering|mechanical|repair', 1, 1, 'document')
+        ]
+        cursor.executemany('''
+            INSERT INTO document_categories (label, color, icon, pattern, user_id, is_system, scope)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', default_categories)
+        print("Seeded default document categories")
+
+    # Seed Default Categories if empty (for certificates)
+    cursor.execute("SELECT count(*) FROM document_categories WHERE scope = 'certificate'")
+    if cursor.fetchone()[0] == 0:
+        cert_categories = [
+            ('CoC', 'orange', 'Award', 'coc|competency|certificate of competency', 1, 1, 'certificate'),
+            ('STCW', 'blue', 'Anchor', 'stcw|training|safety', 1, 1, 'certificate'),
+            ('Medical', 'emerald', 'Stethoscope', 'medical|health', 1, 1, 'certificate'),
+            ('License', 'purple', 'FileText', 'license|endorsement', 1, 1, 'certificate'),
+            ('Other', 'zinc', 'File', 'other|misc', 1, 1, 'certificate')
+        ]
+        cursor.executemany('''
+            INSERT INTO document_categories (label, color, icon, pattern, user_id, is_system, scope)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', cert_categories)
+        print("Seeded default certificate categories")
+
+    conn.commit()
+    conn.close()
+
+    # Create Resume Drafts Table
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resume_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            name TEXT NOT NULL,
+            data TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Check for user_id in resume_drafts and migrate (just in case, though likely new)
+    cursor.execute("PRAGMA table_info(resume_drafts)")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'user_id' not in columns:
+        try:
+            cursor.execute("ALTER TABLE resume_drafts ADD COLUMN user_id INTEGER")
+            print("Migrated: Added column user_id to resume_drafts")
+        except Exception as e:
+            print(f"Migration error for resume_drafts user_id: {e}")
 
     conn.commit()
     conn.close()

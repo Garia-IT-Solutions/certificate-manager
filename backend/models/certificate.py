@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class CertificateCreate(BaseModel):
-    cert: bytes
+    cert: str
     certType: str 
     issuedBy: str
     status: str # enum["EXPIRING", "VALID", "INVALID"]
@@ -14,11 +14,11 @@ class CertificateCreate(BaseModel):
     hidden: bool
 
 class CertificateUpdate(BaseModel):
-    cert: Optional[bytes] = None
+    cert: Optional[str] = None
     certType: Optional[str] = None
     issuedBy: Optional[str] = None
     status: Optional[str] = None
-    expiry_date: Optional[date] = None
+    expiry: Optional[str] = None
     certName: Optional[str] = None
     issueDate: Optional[datetime] = None
     hidden: Optional[bool] = None
@@ -35,7 +35,7 @@ class CertificateSummary(BaseModel):
     certType: str
     issuedBy: str
     status: str
-    expiry_date: Optional[date] = None
+    expiry: Optional[date] = None
     certName: str
     issueDate: datetime
     uploadDate: datetime

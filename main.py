@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import get_db_connection, init_db
-from backend.routes import certificate_routes, profile_routes, seatimelog_routes, document_routes, auth_routes, dashboard_routes
+from backend.routes import certificate_routes, profile_routes, seatimelog_routes, document_routes, auth_routes, dashboard_routes, category_routes, resume_routes
 import contextlib
 
 @contextlib.asynccontextmanager
@@ -25,6 +25,8 @@ app.include_router(seatimelog_routes.router)
 app.include_router(document_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(dashboard_routes.router)
+app.include_router(category_routes.router)
+app.include_router(resume_routes.router)
 
 if __name__ == "__main__":
     try:

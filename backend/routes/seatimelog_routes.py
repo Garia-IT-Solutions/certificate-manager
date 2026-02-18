@@ -22,6 +22,14 @@ def read_seatimelog(log_id: int, current_user: Profile = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Sea Time Log not found")
     return log
 
+
+@router.put("/seatimelogs/{log_id}", response_model=SeaTimeLog)
+def update_seatimelog(log_id: int, log: SeaTimeLogCreate, current_user: Profile = Depends(get_current_user)):
+    updated_log = seatimelog_controller.update_seatimelog(log_id, log, current_user.id)
+    if updated_log is None:
+        raise HTTPException(status_code=404, detail="Sea Time Log not found")
+    return updated_log
+
 @router.delete("/seatimelogs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_seatimelog(log_id: int, current_user: Profile = Depends(get_current_user)):
     success = seatimelog_controller.delete_seatimelog(log_id, current_user.id)

@@ -7,10 +7,10 @@ def create_seatimelog(log: SeaTimeLogCreate, user_id: int) -> SeaTimeLog:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        '''INSERT INTO sea_time_logs (imo, offNo, flag, vesselName, type, company, dept, mainEngine, bhp, torque, dwt, rank, signOn, signOff, uploadDate, user_id) 
+        '''INSERT INTO sea_time_logs (imo, offNo, flag, vesselName, type, company, dept, mainEngine, bhp, kw, dwt, rank, signOn, signOff, uploadDate, user_id) 
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, log.dept or "ENGINE",
-         log.mainEngine or "", log.bhp or 0, log.torque or 0, log.dwt, log.rank, 
+         log.mainEngine or "", log.bhp or 0, log.kw or 0, log.dwt, log.rank, 
          log.signOn.isoformat(), log.signOff.isoformat(), log.uploadDate.isoformat(), user_id)
     )
     log_id = cursor.lastrowid
@@ -21,7 +21,7 @@ def create_seatimelog(log: SeaTimeLogCreate, user_id: int) -> SeaTimeLog:
 def get_seatimelogs(user_id: int) -> List[SeaTimeLog]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM sea_time_logs WHERE user_id = ?', (user_id,))
+    cursor.execute('SELECT * FROM sea_time_logs WHERE user_id = ? ORDER BY signOn DESC', (user_id,))
     rows = cursor.fetchall()
     conn.close()
     if not rows:
@@ -38,6 +38,7 @@ def get_seatimelog_by_id(log_id: int, user_id: int) -> Optional[SeaTimeLog]:
         return SeaTimeLog(**dict(row))
     return None
 
+
 def delete_seatimelog(log_id: int, user_id: int) -> bool:
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -46,3 +47,28 @@ def delete_seatimelog(log_id: int, user_id: int) -> bool:
     changes = cursor.rowcount
     conn.close()
     return changes > 0
+
+def update_seatimelog(log_id: int, log: SeaTimeLogCreate, user_id: int) -> Optional[SeaTimeLog]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if exists
+    cursor.execute('SELECT id FROM sea_time_logs WHERE id = ? AND user_id = ?', (log_id, user_id))
+    if not cursor.fetchone():
+        conn.close()
+        return None
+
+    cursor.execute(
+        '''UPDATE sea_time_logs 
+           SET imo = ?, offNo = ?, flag = ?, vesselName = ?, type = ?, company = ?, dept = ?, 
+               mainEngine = ?, bhp = ?, kw = ?, dwt = ?, rank = ?, signOn = ?, signOff = ?, uploadDate = ?
+           WHERE id = ? AND user_id = ?''',
+        (log.imo, log.offNo, log.flag, log.vesselName, log.type, log.company, log.dept or "ENGINE",
+         log.mainEngine or "", log.bhp or 0, log.kw or 0, log.dwt, log.rank, 
+         log.signOn.isoformat(), log.signOff.isoformat(), log.uploadDate.isoformat(), 
+         log_id, user_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return SeaTimeLog(id=log_id, user_id=user_id, **log.model_dump())

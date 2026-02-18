@@ -6,7 +6,10 @@ from backend.routes import (
     dashboard_routes,
     document_routes,
     profile_routes,
-    seatimelog_routes
+    seatimelog_routes,
+    seatimelog_routes,
+    category_routes,
+    resume_routes
 )
 from backend.database import init_db
 from contextlib import asynccontextmanager
@@ -35,6 +38,8 @@ app.include_router(dashboard_routes.router, tags=["Dashboard"])
 app.include_router(document_routes.router, tags=["Documents"])
 app.include_router(profile_routes.router, tags=["Profile"])
 app.include_router(seatimelog_routes.router, tags=["Sea Time Logs"])
+app.include_router(category_routes.router, tags=["Categories"])
+app.include_router(resume_routes.router, tags=["Resume Drafts"])
 
 @app.get("/")
 def read_root():

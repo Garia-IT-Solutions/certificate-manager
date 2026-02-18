@@ -11,12 +11,14 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TiltCard } from "@/components/TiltCard";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 
 // User profile is fetched dynamically from the API
 
 const VESSEL_TYPES = [
    "Oil Tanker", "Gas Tanker", "Product Tanker", "Oil/Chem Tanker", "Chemical Tanker", "Bitumen Tanker",
+   "VLCC", "ULCC",
    "Container Ship", "Bulk Carrier", "General Cargo", "Cruise Ship",
    "Ro-Ro", "FSO", "FPSO", "PSV", "Bunker barge"
 ];
@@ -51,7 +53,7 @@ interface SeaTimeEntry {
    rank: string;
    mainEngine: string;
    bhp: number;
-   torque: number;
+   kw: number;
    dwt: number;
    signOn: string;
    signOff: string;
@@ -212,7 +214,7 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
    const [formData, setFormData] = useState({
       imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "",
       dept: userDepartment || "ENGINE",
-      rank: "", mainEngine: "", bhp: "", torque: "", dwt: "", signOn: "", signOff: ""
+      rank: "", mainEngine: "", bhp: "", kw: "", dwt: "", signOn: "", signOff: ""
    });
 
    const liveDuration = useMemo(() => calculateDuration(formData.signOn, formData.signOff), [formData.signOn, formData.signOff]);
@@ -227,13 +229,24 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
             vesselName: initialData.vesselName, type: initialData.type, company: initialData.company,
             dept: initialData.dept, rank: initialData.rank,
             mainEngine: initialData.mainEngine, bhp: initialData.bhp.toString(),
-            torque: initialData.torque?.toString() || "", dwt: initialData.dwt?.toString() || "",
+            kw: initialData.kw?.toString() || "", dwt: initialData.dwt?.toString() || "",
             signOn: initialData.signOn, signOff: initialData.signOff
          });
       } else {
-         setFormData({ imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "", dept: userDepartment || "ENGINE", rank: "", mainEngine: "", bhp: "", torque: "", dwt: "", signOn: "", signOff: "" });
+         setFormData({ imo: "", offNo: "", flag: "", vesselName: "", type: "", company: "", dept: userDepartment || "ENGINE", rank: "", mainEngine: "", bhp: "", kw: "", dwt: "", signOn: "", signOff: "" });
       }
    }, [initialData, isOpen]);
+
+   // Auto-convert BHP to kW
+   useEffect(() => {
+      if (formData.bhp && !initialData) { // Only auto-convert if not editing or explicitly changed? Actually user said "On entering the bhp it should automatically convert"
+         const bhpVal = parseFloat(formData.bhp);
+         if (!isNaN(bhpVal)) {
+            const kwVal = Math.round(bhpVal * 0.7457);
+            setFormData(prev => ({ ...prev, kw: kwVal.toString() }));
+         }
+      }
+   }, [formData.bhp]);
 
    if (!isOpen) return null;
 
@@ -300,8 +313,8 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
                               <input className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.mainEngine} onChange={(e) => setFormData({ ...formData, mainEngine: e.target.value })} />
                            </div>
                            <div className="grid grid-cols-2 gap-2">
-                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">BHP</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp} onChange={(e) => setFormData({ ...formData, bhp: e.target.value })} /></div>
-                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Torque</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.torque} onChange={(e) => setFormData({ ...formData, torque: e.target.value })} /></div>
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Propulsion (kBHP)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp ? parseFloat(formData.bhp) / 1000 : ""} onChange={(e) => setFormData({ ...formData, bhp: (parseFloat(e.target.value) * 1000).toString() })} /></div>
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Power (W)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.kw} onChange={(e) => setFormData({ ...formData, kw: e.target.value })} /></div>
                            </div>
                         </div>
                      )}
@@ -344,8 +357,24 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign On</label><input type="date" className="w-full bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300] text-zinc-600 dark:text-zinc-300" value={formData.signOn} onChange={(e) => setFormData({ ...formData, signOn: e.target.value })} /></div>
-                           <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign Off</label><input type="date" className="w-full bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300] text-zinc-600 dark:text-zinc-300" value={formData.signOff} onChange={(e) => setFormData({ ...formData, signOff: e.target.value })} /></div>
+                           <div>
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign On</label>
+                              <DatePicker
+                                 date={formData.signOn ? new Date(formData.signOn) : undefined}
+                                 setDate={(date) => setFormData({ ...formData, signOn: date ? date.toLocaleDateString('en-CA') : "" })}
+                                 placeholder="Sign On Date"
+                                 className="bg-white dark:bg-black w-full"
+                              />
+                           </div>
+                           <div>
+                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Sign Off</label>
+                              <DatePicker
+                                 date={formData.signOff ? new Date(formData.signOff) : undefined}
+                                 setDate={(date) => setFormData({ ...formData, signOff: date ? date.toLocaleDateString('en-CA') : "" })}
+                                 placeholder="Sign Off Date"
+                                 className="bg-white dark:bg-black w-full"
+                              />
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -395,7 +424,7 @@ export default function SeaTimePage() {
             dept: d.dept || userDepartment,
             mainEngine: d.mainEngine,
             bhp: d.bhp,
-            torque: d.torque,
+            kw: d.kw || (d.bhp ? Math.round(d.bhp * 0.7457) : 0), // Fallback if kw missing
             dwt: d.dwt,
             rank: d.rank,
             signOn: d.signOn ? d.signOn.split("T")[0] : "",
@@ -415,13 +444,14 @@ export default function SeaTimePage() {
    const [filters, setFilters] = useState({ rank: '', type: '', company: '' });
    const [isFilterOpen, setIsFilterOpen] = useState(false);
    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
    const stats = useMemo(() => {
-      let totalDays = 0, maxBhp = 0, maxTorque = 0;
+      let totalDays = 0, maxBhp = 0, maxKw = 0;
       entries.forEach(r => {
          totalDays += (r.duration.years * 365) + (r.duration.months * 30) + r.duration.days;
          if (r.bhp > maxBhp) maxBhp = r.bhp;
-         if (r.torque > maxTorque) maxTorque = r.torque;
+         if (r.kw > maxKw) maxKw = r.kw;
       });
       const totalYears = Math.floor(totalDays / 365);
       const remainingDays = totalDays % 365;
@@ -430,19 +460,25 @@ export default function SeaTimePage() {
          totalTime: `${totalYears}y ${totalMonths}m`,
          vesselCount: entries.length,
          maxPower: (maxBhp / 1000).toFixed(0) + "k",
-         maxTorque: (maxTorque / 1000).toFixed(1) + "k"
+         maxKw: (maxKw / 1000).toFixed(1) + "k"
       };
    }, [entries]);
 
    const filteredRecords = useMemo(() => {
-      return entries.filter(r => {
+      let filtered = entries.filter(r => {
          const matchSearch = r.vesselName.toLowerCase().includes(searchTerm.toLowerCase()) || r.company.toLowerCase().includes(searchTerm.toLowerCase());
          const matchRank = filters.rank ? r.rank === filters.rank : true;
          const matchType = filters.type ? r.type === filters.type : true;
          const matchCompany = filters.company ? r.company === filters.company : true;
          return matchSearch && matchRank && matchType && matchCompany;
       });
-   }, [entries, searchTerm, filters]);
+
+      return filtered.sort((a, b) => {
+         const dateA = new Date(a.signOn).getTime();
+         const dateB = new Date(b.signOn).getTime();
+         return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+   }, [entries, searchTerm, filters, sortOrder]);
 
    const handleSave = async (data: any) => {
       try {
@@ -457,15 +493,17 @@ export default function SeaTimePage() {
             rank: data.rank,
             mainEngine: data.mainEngine,
             bhp: Number(data.bhp),
-            torque: Number(data.torque),
+            kw: Number(data.kw),
             dwt: Number(data.dwt),
             signOn: data.signOn,
             signOff: data.signOff,
             uploadDate: new Date().toISOString().split("T")[0]
          };
 
+
          if (editingId) {
-            toast.error("Update function not enabled in backend yet.");
+            await api.updateSeaTimeLog(editingId, entryToSave);
+            toast.success("Sea service record updated");
          } else {
             await api.createSeaTimeLog(entryToSave);
             toast.success("New sea service record added");
@@ -494,8 +532,8 @@ export default function SeaTimePage() {
    };
 
    const handleExport = () => {
-      const headers = ["Vessel", "Type", "Company", "Dept", "Rank", "Engine", "BHP", "Torque", "DWT", "Start", "End"];
-      const rows = entries.map(r => [r.vesselName, r.type, r.company, r.dept, r.rank, r.mainEngine, r.bhp, r.torque, r.dwt, r.signOn, r.signOff]);
+      const headers = ["Vessel", "Type", "Company", "Dept", "Rank", "Engine", "BHP", "KW", "DWT", "Start", "End"];
+      const rows = entries.map(r => [r.vesselName, r.type, r.company, r.dept, r.rank, r.mainEngine, r.bhp, r.kw, r.dwt, r.signOn, r.signOff]);
       const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
       const link = document.createElement("a");
       link.href = encodeURI(csvContent); link.download = "sea_time.csv"; link.click();
@@ -539,15 +577,15 @@ export default function SeaTimePage() {
                <TiltCard className="h-[110px] relative overflow-hidden border-none bg-white dark:bg-[#09090b]">
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500 shadow-[0_0_15px_#ef4444] z-20" />
                   <div className="p-4 h-full flex flex-col justify-between relative z-10">
-                     <div><p className="font-mono text-[8px] uppercase text-red-500 mb-0.5 font-bold tracking-widest flex items-center gap-1">Max Propulsion <Zap size={8} fill="currentColor" /></p><div className="text-3xl font-light text-zinc-900 dark:text-white tracking-tighter leading-none">{stats.maxPower}<span className="text-lg text-zinc-400 ml-1 font-thin">BHP</span></div></div>
+                     <div><p className="font-mono text-[8px] uppercase text-red-500 mb-0.5 font-bold tracking-widest flex items-center gap-1">Max Propulsion <Zap size={8} fill="currentColor" /></p><div className="text-3xl font-light text-zinc-900 dark:text-white tracking-tighter leading-none">{stats.maxPower}<span className="text-lg text-zinc-400 ml-1 font-thin">kBHP</span></div></div>
                      <p className="text-[9px] text-zinc-500 font-medium">Highest Capacity Engine</p>
                   </div>
                </TiltCard>
                <TiltCard className="h-[110px] relative overflow-hidden border-none bg-white dark:bg-[#09090b]">
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 shadow-[0_0_15px_#10b981] z-20" />
                   <div className="p-4 h-full flex flex-col justify-between relative z-10">
-                     <div><p className="font-mono text-[8px] uppercase text-emerald-500 mb-0.5 font-bold tracking-widest flex items-center gap-1">Peak Torque</p><div className="text-3xl font-light text-zinc-900 dark:text-white tracking-tighter leading-none">{stats.maxTorque}<span className="text-lg text-zinc-400 ml-1 font-thin">kNm</span></div></div>
-                     <p className="text-[9px] text-zinc-500 font-medium">Max Shaft Output</p>
+                     <div><p className="font-mono text-[8px] uppercase text-emerald-500 mb-0.5 font-bold tracking-widest flex items-center gap-1">AVG Power</p><div className="text-3xl font-light text-zinc-900 dark:text-white tracking-tighter leading-none">{stats.maxKw}<span className="text-lg text-zinc-400 ml-1 font-thin">kW</span></div></div>
+                     <p className="text-[9px] text-zinc-500 font-medium">Max Kilowatts</p>
                   </div>
                </TiltCard>
             </div>
@@ -558,6 +596,10 @@ export default function SeaTimePage() {
                   <input type="text" placeholder="Search by vessel or company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2.5 pl-9 pr-3 text-xs outline-none focus:border-[#FF3300]" />
                </div>
                <div className="relative shrink-0 flex gap-2 sm:gap-3">
+                  <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
+                     {sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                     <span className="text-[10px] font-bold uppercase">Date</span>
+                  </button>
                   <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
                      <Filter size={12} /> <span className="text-[10px] font-bold uppercase">Filter</span> {(filters.rank || filters.type || filters.company) && <span className="w-1.5 h-1.5 rounded-full bg-[#FF3300]" />}
                   </button>
@@ -619,8 +661,8 @@ export default function SeaTimePage() {
                               <p className="text-[9px] uppercase text-zinc-400 font-bold mb-1">Main Engine</p>
                               <p className="text-xs font-bold text-zinc-900 dark:text-white truncate mb-2" title={record.mainEngine}>{record.mainEngine}</p>
                               <div className="grid grid-cols-2 gap-2">
-                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k</span></div>
-                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Torque</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.torque / 1000).toFixed(1)}k</span></div>
+                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Propulsion</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k BHP</span></div>
+                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.kw / 1000).toFixed(1)}k kW</span></div>
                               </div>
                            </div>
                         )}

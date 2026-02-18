@@ -9,6 +9,15 @@ const getHeaders = () => {
     };
 };
 
+export interface Category {
+    id: number;
+    label: string;
+    color: string;
+    icon: string;
+    pattern?: string;
+    is_system: boolean;
+}
+
 export const api = {
     // AUTH
     login: async (credentials: any) => {
@@ -60,7 +69,11 @@ export const api = {
             headers: getHeaders(),
             body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error("Failed to create certificate");
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            console.error("Certificate creation failed", error);
+            throw new Error(error.detail || "Failed to create certificate");
+        }
         return res.json();
     },
 
@@ -160,6 +173,7 @@ export const api = {
         return res.json();
     },
 
+
     deleteSeaTimeLog: async (id: number) => {
         const res = await fetch(`${API_URL}/seatimelogs/${id}`, {
             method: "DELETE",
@@ -167,6 +181,16 @@ export const api = {
         });
         if (!res.ok) throw new Error("Failed to delete sea time log");
         return true;
+    },
+
+    updateSeaTimeLog: async (id: number, data: any) => {
+        const res = await fetch(`${API_URL}/seatimelogs/${id}`, {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) throw new Error("Failed to update sea time log");
+        return res.json();
     },
 
     // PROFILE
@@ -186,6 +210,90 @@ export const api = {
         });
         if (!res.ok) throw new Error("Failed to update profile");
         return res.json();
+    },
+
+    // Categories
+    getCategories: async (scope: string = "document"): Promise<Category[]> => {
+        const response = await fetch(`${API_URL}/categories?scope=${scope}`, {
+            headers: getHeaders(),
+        });
+        if (!response.ok) throw new Error("Failed to fetch categories");
+        return response.json();
+    },
+
+    createCategory: async (data: { label: string; color: string; icon: string; pattern?: string; scope?: string }) => {
+        const response = await fetch(`${API_URL}/categories`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error("Failed to create category");
+        return response.json();
+    },
+
+    updateCategory: async (id: number, data: { label?: string; color?: string; icon?: string }) => {
+        const response = await fetch(`${API_URL}/categories/${id}`, {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error("Failed to update category");
+        return response.json();
+    },
+
+    deleteCategory: async (id: number) => {
+        const response = await fetch(`${API_URL}/categories/${id}`, {
+            method: "DELETE",
+            headers: getHeaders(),
+        });
+        if (!response.ok) throw new Error("Failed to delete category");
+        return response.json();
+    },
+
+    // RESUME DRAFTS
+    getResumeDrafts: async () => {
+        const res = await fetch(`${API_URL}/resumes`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to fetch resume drafts");
+        return res.json();
+    },
+
+    getResumeDraft: async (id: number) => {
+        const res = await fetch(`${API_URL}/resumes/${id}`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to fetch resume draft");
+        return res.json();
+    },
+
+    createResumeDraft: async (data: any) => {
+        const res = await fetch(`${API_URL}/resumes`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) throw new Error("Failed to create resume draft");
+        return res.json();
+    },
+
+    updateResumeDraft: async (id: number, data: any) => {
+        const res = await fetch(`${API_URL}/resumes/${id}`, {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) throw new Error("Failed to update resume draft");
+        return res.json();
+    },
+
+    deleteResumeDraft: async (id: number) => {
+        const res = await fetch(`${API_URL}/resumes/${id}`, {
+            method: "DELETE",
+            headers: getHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed to delete resume draft");
+        return true;
     },
 
     // DASHBOARD

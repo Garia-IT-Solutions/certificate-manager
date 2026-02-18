@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { api } from "@/app/services/api";
+import { api, Category } from "@/app/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -27,9 +27,11 @@ import {
   Stethoscope
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DatePicker } from '@/components/ui/date-picker';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Switch } from "@/components/ui/switch";
 import { SYSTEM_CONFIG } from "@/lib/config";
+import { CategoryManager } from "@/app/components/CategoryManager";
 
 interface Certificate {
   id: number;
@@ -42,38 +44,49 @@ interface Certificate {
   fileUrl?: string;
   fileBlob?: string; // Cache base64 data
   fileName?: string;
+  mimeType?: string;
 }
 
-const CERTIFICATE_TYPES_CONFIG = [
-  { id: 'Certificate of Competency (CoC)', label: 'CoC', icon: Award, color: 'orange' },
-  { id: 'STCW Course', label: 'STCW', icon: Anchor, color: 'blue' },
-  { id: 'Medical Certificate', label: 'Medical', icon: Stethoscope, color: 'emerald' },
-  { id: 'License', label: 'License', icon: FileText, color: 'purple' },
-  { id: 'Other Certificate', label: 'Other', icon: FileIcon, color: 'zinc' },
+const ICONS_MAP: Record<string, any> = {
+  "Award": Award,
+  "Anchor": Anchor,
+  "Stethoscope": Stethoscope,
+  "FileText": FileText,
+  "File": FileIcon,
+  "Plane": FileIcon, // Fallback or add imports if needed
+  "Wrench": FileIcon, // Fallback
+};
+
+const CERTIFICATE_TYPES = [
+  { value: "CoC", label: "Certificate of Competency (CoC)", description: "Professional competency certificates" },
+  { value: "STCW", label: "STCW Course", description: "Safety training & STCW courses" },
+  { value: "Medical", label: "Medical Certificate", description: "Health & medical certifications" },
+  { value: "License", label: "License", description: "Professional licenses & endorsements" },
+  { value: "Other", label: "Other Certificate", description: "Other maritime certificates" },
 ];
 
-function CertificateTypeModal({ isOpen, onClose, onSelect, activeCategory, counts }: {
+function CertificateTypeModal({ isOpen, onClose, onSelect, activeCategory, counts, categories }: {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (id: string) => void;
   activeCategory: string | null;
   counts: Record<string, number>;
+  categories: Category[];
 }) {
   const [search, setSearch] = useState("");
 
   const filteredTypes = useMemo(() => {
-    const configs = CERTIFICATE_TYPES_CONFIG.filter(cat =>
+    const allCategories = categories.map(cat => ({
+      id: cat.label, // Use label as UID for filtering
+      label: CERTIFICATE_TYPES.find(t => t.value === cat.label)?.label || cat.label,
+      icon: ICONS_MAP[cat.icon] || FileIcon, // Use ICONS_MAP for dynamic icons
+      color: cat.color || 'zinc' // Fallback color
+    }));
+
+    return allCategories.filter(cat =>
       cat.label.toLowerCase().includes(search.toLowerCase()) || cat.id.toLowerCase().includes(search.toLowerCase())
     );
-    const dynamicKeys = Object.keys(counts).filter(k => !CERTIFICATE_TYPES_CONFIG.find(c => c.id === k));
-    const dynamicMatches = dynamicKeys.filter(k => k.toLowerCase().includes(search.toLowerCase())).map(k => ({
-      id: k,
-      label: k,
-      icon: FileIcon,
-      color: 'zinc'
-    }));
-    return [...configs, ...dynamicMatches];
-  }, [search, counts]);
+  }, [search, categories]);
 
   if (!isOpen) return null;
 
@@ -161,16 +174,22 @@ function CertificateTypeModal({ isOpen, onClose, onSelect, activeCategory, count
 const INITIAL_DATA: Certificate[] = [];
 
 function getDaysUntilExpiry(expiryDate: string | null): number {
-  if (!expiryDate) return Infinity;
-  const today = new Date();
+  if (!expiryDate || expiryDate === "Unlimited") return Infinity;
+
+  // Create dates and reset time to midnight to compare just dates locally
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const expiry = new Date(expiryDate);
-  const diff = expiry.getTime() - today.getTime();
+  const expiryDay = new Date(expiry.getFullYear(), expiry.getMonth(), expiry.getDate());
+  if (isNaN(expiry.getTime())) return Infinity;
+  const diff = expiryDay.getTime() - today.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
 function formatDateDisplay(dateString: string | null) {
-  if (!dateString) return { day: "", month: "", year: "Unlimited" };
+  if (!dateString || dateString === "Unlimited") return { day: "", month: "", year: "Unlimited" };
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return { day: "", month: "", year: "Invalid Date" };
   return {
     day: date.getDate(),
     month: date.toLocaleString('default', { month: 'short' }).toUpperCase(),
@@ -251,22 +270,16 @@ function DeleteConfirmationDialog({
   );
 }
 
-const CERTIFICATE_TYPES = [
-  { value: "coc", label: "Certificate of Competency (CoC)", description: "Professional competency certificates" },
-  { value: "stcw", label: "STCW Course", description: "Safety training & STCW courses" },
-  { value: "license", label: "License", description: "Professional licenses & endorsements" },
-  { value: "medical", label: "Medical Certificate", description: "Health & medical certifications" },
-  { value: "other", label: "Other Certificate", description: "Other maritime certificates" },
-];
-
 function UploadModal({
   isOpen,
   onClose,
   onUpload,
+  categories
 }: {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (file: File, certType: string, certName: string, issuedBy: string, issueDate: string, expiryDate: string | null) => void;
+  categories: Category[];
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -274,7 +287,7 @@ function UploadModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [step, setStep] = useState<"upload" | "classify">("upload");
 
-  const [certType, setCertType] = useState("coc");
+  const [certType, setCertType] = useState(CERTIFICATE_TYPES[0].value);
   const [certName, setCertName] = useState("");
   const [issuedBy, setIssuedBy] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
@@ -285,7 +298,7 @@ function UploadModal({
     if (!isOpen) {
       setSelectedFile(null);
       setStep("upload");
-      setCertType("coc");
+      setCertType(CERTIFICATE_TYPES[0].value);
       setCertName("");
       setIssuedBy("");
       setIssueDate(new Date().toISOString().split('T')[0]);
@@ -433,27 +446,32 @@ function UploadModal({
               <div>
                 <label className="text-[10px] uppercase font-bold text-zinc-400 mb-2 block">Certificate Type *</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {CERTIFICATE_TYPES.map((type) => (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => setCertType(type.value)}
-                      className={cn(
-                        "p-3 rounded-xl border text-left transition-all",
-                        certType === type.value
-                          ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500 shadow-sm"
-                          : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
-                      )}
-                    >
-                      <p className={cn(
-                        "text-xs font-bold",
-                        certType === type.value ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
-                      )}>
-                        {type.label}
-                      </p>
-                      <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight">{type.description}</p>
-                    </button>
-                  ))}
+                  {categories.map((cat) => {
+                    const typeInfo = CERTIFICATE_TYPES.find(t => t.value === cat.label);
+                    const desc = typeInfo?.description || "Certificate Category";
+                    const displayLabel = typeInfo?.label || cat.label;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCertType(cat.label)}
+                        className={cn(
+                          "p-3 rounded-xl border text-left transition-all",
+                          certType === cat.label
+                            ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500 shadow-sm"
+                            : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
+                        )}
+                      >
+                        <p className={cn(
+                          "text-xs font-bold",
+                          certType === cat.label ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
+                        )}>
+                          {displayLabel}
+                        </p>
+                        <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight">{desc}</p>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -480,11 +498,10 @@ function UploadModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issue Date *</label>
-                  <input
-                    type="date"
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
+                  <DatePicker
+                    date={issueDate ? new Date(issueDate) : undefined}
+                    setDate={(date: Date | undefined) => setIssueDate(date ? date.toLocaleDateString('en-CA') : "")}
+                    placeholder="Pick a date"
                   />
                 </div>
 
@@ -504,15 +521,12 @@ function UploadModal({
                       />
                     </div>
                   </div>
-                  <input
-                    type="date"
+                  <DatePicker
+                    date={expiryDate ? new Date(expiryDate) : undefined}
+                    setDate={(date: Date | undefined) => setExpiryDate(date ? date.toLocaleDateString('en-CA') : "")}
+                    placeholder="Pick a date"
                     disabled={isUnlimited}
-                    className={cn(
-                      "w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors",
-                      isUnlimited ? "text-zinc-300 cursor-not-allowed bg-zinc-100 dark:bg-zinc-900/50" : "text-zinc-700 dark:text-zinc-300"
-                    )}
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className={cn(isUnlimited && "opacity-50 cursor-not-allowed")}
                   />
                 </div>
               </div>
@@ -553,15 +567,17 @@ function CertificateViewerModal({
   fileUrl,
   fileName,
   onClose,
+  mimeType,
 }: {
   isOpen: boolean;
   fileUrl?: string;
   fileName: string;
   onClose: () => void;
+  mimeType?: string;
 }) {
   if (!isOpen) return null;
 
-  const isPDF = fileName?.toLowerCase().endsWith(".pdf");
+  const isPDF = mimeType === 'application/pdf' || fileName?.toLowerCase().endsWith(".pdf");
 
   return (
     <div className="fixed inset-0 z-[102] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -704,11 +720,10 @@ function EditCertificateModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block">Issue Date</label>
-              <input
-                type="date"
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none text-zinc-700 dark:text-zinc-300 transition-colors"
-                value={formData.issueDate}
-                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+              <DatePicker
+                date={formData.issueDate ? new Date(formData.issueDate) : undefined}
+                setDate={(date: Date | undefined) => setFormData({ ...formData, issueDate: date ? date.toLocaleDateString('en-CA') : "" })}
+                placeholder="Pick a date"
               />
             </div>
             <div>
@@ -727,15 +742,12 @@ function EditCertificateModal({
                   />
                 </div>
               </div>
-              <input
-                type="date"
+              <DatePicker
+                date={formData.expiry ? new Date(formData.expiry) : undefined}
+                setDate={(date: Date | undefined) => setFormData({ ...formData, expiry: date ? date.toLocaleDateString('en-CA') : "" })}
+                placeholder="Pick a date"
                 disabled={isUnlimited}
-                className={cn(
-                  "w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium focus:border-orange-500 outline-none transition-colors",
-                  isUnlimited ? "text-zinc-300 cursor-not-allowed bg-zinc-100 dark:bg-zinc-900/50" : "text-zinc-700 dark:text-zinc-300"
-                )}
-                value={formData.expiry}
-                onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
+                className={cn(isUnlimited && "opacity-50 cursor-not-allowed")}
               />
             </div>
           </div>
@@ -786,14 +798,46 @@ export default function CertificatesPage() {
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await api.getCategories("certificate");
+        setCategories(data);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+        toast.error("Failed to load certificate categories.");
+      }
+    };
+    fetchCategories();
+  }, [isCategoryManagerOpen]);
+
+  // Helper to map categories to config format for UI
+  const categoryConfig = useMemo(() => {
+    return categories.map(cat => ({
+      id: cat.label, // Use label as ID for compatibility
+      label: cat.label,
+      icon: ICONS_MAP[cat.icon] || FileIcon,
+      color: cat.color || 'zinc'
+    }));
+  }, [categories]);
+
   useEffect(() => {
     loadCertificates();
   }, []);
 
-  const getMimeType = (b64: string) => {
+  const getMimeType = (b64: string, fileName?: string) => {
     if (b64.startsWith('JVBERi0')) return 'application/pdf';
     if (b64.startsWith('iVBORw0KGgo')) return 'image/png';
     if (b64.startsWith('/9j/')) return 'image/jpeg';
+    if (fileName) {
+      const lower = fileName.toLowerCase();
+      if (lower.endsWith('.png')) return 'image/png';
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+      if (lower.endsWith('.pdf')) return 'application/pdf';
+    }
     return 'application/pdf';
   };
 
@@ -829,7 +873,8 @@ export default function CertificatesPage() {
           id: c.id,
           name: c.certName || "Untitled Certificate",
           issuer: c.issuedBy || "Unknown Issuer",
-          certType: c.certType || "Other",
+          certType: (c.certType?.toLowerCase() === "other" || !c.certType) ? "Other Certificate" :
+            (c.certType === "coc") ? "Certificate of Competency (CoC)" : c.certType,
           issueDate: c.issueDate || new Date().toISOString(),
           expiryDate: c.expiry || null,
           status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
@@ -907,8 +952,8 @@ export default function CertificatesPage() {
           cert: base64Content,
           certType: certType,
           issuedBy: issuedBy,
-          approved: false,
-          expiry: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
+          status: status,
+          expiry_date: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null,
           certName: certName,
           issueDate: new Date(issueDate).toISOString(),
           uploadDate: new Date().toISOString(),
@@ -967,11 +1012,11 @@ export default function CertificatesPage() {
     try {
       const fullCert = await api.getCertificate(cert.id);
       if (fullCert.cert) {
-        const mimeType = getMimeType(fullCert.cert);
+        const mimeType = getMimeType(fullCert.cert, cert.fileName);
         const blob = b64toBlob(fullCert.cert, mimeType);
         if (blob) {
           const url = URL.createObjectURL(blob);
-          const updatedCert = { ...cert, fileUrl: url, fileBlob: fullCert.cert };
+          const updatedCert = { ...cert, fileUrl: url, fileBlob: fullCert.cert, mimeType };
           setCertificates(prev => prev.map(c => c.id === cert.id ? updatedCert : c));
           return updatedCert;
         }
@@ -1035,7 +1080,7 @@ export default function CertificatesPage() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
-              Certificate<span className="font-bold text-orange-500">Vault</span>
+              Certificate<span className="font-bold text-[#FF3300]">Vault</span>
             </h1>
             <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
               Secure Certificate Storage & Compliance
@@ -1055,28 +1100,42 @@ export default function CertificatesPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
           <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-4 sm:p-5 flex flex-col relative overflow-hidden shadow-sm h-[220px]">
-            <button onClick={() => activeCategory && setActiveCategory(null)} className={cn("absolute top-4 sm:top-5 left-4 sm:left-5 flex items-center gap-2 transition-all z-10", activeCategory ? "cursor-pointer hover:opacity-70" : "pointer-events-none")}>
-              <div className="p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-md text-zinc-500">
-                {activeCategory ? <FilterX size={14} className="text-orange-500" /> : <MoreHorizontal size={14} />}
-              </div>
-              <span className={cn("text-[10px] font-bold uppercase tracking-widest transition-colors", activeCategory ? "text-orange-500" : "text-zinc-400")}>
-                {activeCategory ? "Clear Filter" : "Distribution"}
-              </span>
-            </button>
+            <div className="flex justify-between items-center absolute top-4 sm:top-5 left-4 sm:left-5 right-4 z-10">
+              <button onClick={() => activeCategory && setActiveCategory(null)} className={cn("flex items-center gap-2 transition-all", activeCategory ? "cursor-pointer hover:opacity-70" : "pointer-events-none")}>
+                <div className="p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-md text-zinc-500">
+                  {activeCategory ? <FilterX size={14} className="text-orange-500" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>}
+                </div>
+                <span className={cn("text-[10px] font-bold uppercase tracking-widest transition-colors", activeCategory ? "text-orange-500" : "text-zinc-400")}>
+                  {activeCategory ? "Clear Filter" : "Distribution"}
+                </span>
+              </button>
+            </div>
+
+            {categories.length > 4 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsTypeModalOpen(true); }}
+                className="absolute top-5 sm:top-4 right-2 sm:right-4 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all z-30"
+              >
+                <span className="text-[7px] font-bold uppercase tracking-wide">View All</span>
+              </button>
+            )}
+
             <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-4 pt-10 pb-1">
-              {CERTIFICATE_TYPES_CONFIG.slice(0, 3).map((cat) => {
+              {categoryConfig.slice(0, 4).map((cat) => {
                 const isSelected = activeCategory === cat.id;
                 const count = stats.categorized[cat.id] || 0;
 
                 const activeBg = cat.color === 'emerald' ? "bg-emerald-500 text-white" :
                   cat.color === 'orange' ? "bg-orange-500 text-white" :
                     cat.color === 'blue' ? "bg-blue-500 text-white" :
-                      "bg-purple-500 text-white";
+                      cat.color === 'purple' ? "bg-purple-500 text-white" :
+                        "bg-zinc-500 text-white";
 
                 const activeText = cat.color === 'emerald' ? "text-emerald-500" :
                   cat.color === 'orange' ? "text-orange-500" :
                     cat.color === 'blue' ? "text-blue-500" :
-                      "text-purple-500";
+                      cat.color === 'purple' ? "text-purple-500" :
+                        "text-zinc-500";
 
                 return (
                   <button key={cat.id} onClick={() => setActiveCategory(prev => prev === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
@@ -1090,15 +1149,6 @@ export default function CertificatesPage() {
                   </button>
                 );
               })}
-
-              <button onClick={() => setIsTypeModalOpen(true)} className="flex flex-col items-center gap-1 group/item w-full outline-none">
-                <div className="p-1.5 rounded-xl transition-all duration-300 shadow-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-400 hover:scale-105 hover:border-orange-500 hover:text-orange-500">
-                  <LayoutGrid size={16} strokeWidth={2.5} className="sm:w-[20px] sm:h-[20px]" />
-                </div>
-                <div className="text-center">
-                  <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-orange-500 transition-colors">View All</span>
-                </div>
-              </button>
             </div>
           </div>
 
@@ -1242,7 +1292,9 @@ export default function CertificatesPage() {
                         )}>
                           {cert.status === 'EXPIRED' ? `Expired ${Math.abs(daysLeft)} days ago` :
                             cert.status === 'EXPIRING' ? `Expires in ${daysLeft} days` :
-                              "Valid Certificate"
+                              (daysLeft !== Infinity && daysLeft > 0) ? `Expires in ${daysLeft} days` :
+                                daysLeft === 0 ? "Expires Today" :
+                                  "Valid Certificate"
                           }
                         </span>
 
@@ -1326,6 +1378,7 @@ export default function CertificatesPage() {
             isOpen={isUploadOpen}
             onClose={() => setIsUploadOpen(false)}
             onUpload={handleUpload}
+            categories={categories}
           />
         )}
       </AnimatePresence>
@@ -1347,6 +1400,7 @@ export default function CertificatesPage() {
             isOpen={showViewer}
             fileUrl={selectedCert.fileUrl}
             fileName={selectedCert.fileName || "certificate"}
+            mimeType={selectedCert.mimeType}
             onClose={() => setShowViewer(false)}
           />
         )}
@@ -1371,10 +1425,32 @@ export default function CertificatesPage() {
             onSelect={(id) => { setActiveCategory(id); setIsTypeModalOpen(false); }}
             activeCategory={activeCategory}
             counts={stats.categorized}
+            categories={categories}
           />
         )}
       </AnimatePresence>
 
+      <CategoryManager
+        isOpen={isCategoryManagerOpen}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        onCategoriesChange={() => { }} // useEffect handles refresh
+        scope="certificate"
+      />
+
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setIsCategoryManagerOpen(true)}
+          className="group h-12 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full flex items-center shadow-2xl transition-all duration-300 w-12 hover:w-[190px] overflow-hidden relative"
+          title="Manage Categories"
+        >
+          <div className="absolute left-0 w-12 h-12 flex items-center justify-center shrink-0">
+            <Edit size={20} />
+          </div>
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out whitespace-nowrap text-sm font-bold uppercase tracking-wide pl-12 pr-6">
+            Edit Categories
+          </span>
+        </button>
+      </div>
     </div >
   );
 }

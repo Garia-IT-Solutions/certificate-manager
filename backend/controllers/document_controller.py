@@ -44,15 +44,60 @@ def get_documents(user_id: int, archived: bool = False) -> List[DocumentSummary]
         WHERE user_id = ? AND archived = ?
     ''', (user_id, archived))
     rows = cursor.fetchall()
-    conn.close()
     
     results = []
+    updates_made = False
+
+    from datetime import datetime
+
     for row in rows:
         d = dict(row)
-        # Recalculate status dynamically
-        d['status'] = calculate_status(d['expiry'])
+        try:
+            # Parse expiry date
+            expiry_val = d['expiry']
+            expiry_date = None
+            if expiry_val:
+                if isinstance(expiry_val, str):
+                    # Handle potential Z suffix or other ISO variations
+                    expiry_date = datetime.fromisoformat(expiry_val.replace('Z', '+00:00'))
+                else:
+                    expiry_date = expiry_val
+
+            if expiry_date:
+                today = datetime.now()
+                # Ensure we compare date objects to avoid time component issues
+                today_date = today.date() if isinstance(today, datetime) else today
+                expiry_d = expiry_date.date() if isinstance(expiry_date, datetime) else expiry_date
+                
+                delta_days = (expiry_d - today_date).days
+
+                new_status = "VALID"
+                if delta_days < 0:
+                     new_status = "EXPIRED"
+                elif delta_days <= 90:
+                     new_status = "EXPIRING"
+            else:
+                # No expiry date = Unlimited validity
+                new_status = "VALID"
+
+            # Update if different
+            if d['status'] != new_status:
+                cursor.execute('UPDATE documents SET status = ? WHERE id = ? AND user_id = ?', (new_status, d['id'], user_id))
+                d['status'] = new_status
+                updates_made = True
+
+        except Exception as e:
+            print(f"Error checking status for doc {d.get('id')}: {e}")
+            # Fallback to existing status if error
+            pass
+
         results.append(DocumentSummary(**d))
-        
+
+    if updates_made:
+        conn.commit()
+
+    conn.close()
+
     return results
 
 def update_document(doc_id: int, user_id: int, updates: dict) -> bool:

@@ -5,9 +5,38 @@ import { ResumeForm } from "./components/ResumeForm";
 import { ResumePreview } from "./components/ResumePreview";
 import { ResumeData, generateResumePDF } from "@/app/lib/pdf-generator";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { FileText, Download, Loader2 } from "lucide-react";
+import { FileText, Download, Loader2, Save, Trash2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { api } from "@/app/services/api";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const INITIAL_DATA: ResumeData = {
     personalInfo: {
@@ -109,6 +138,104 @@ export default function ResumePage() {
     const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_DATA);
     const [errors, setErrors] = useState<Record<string, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+    const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+    const [draftName, setDraftName] = useState("");
+    const [drafts, setDrafts] = useState<any[]>([]);
+    const [currentDraftId, setCurrentDraftId] = useState<number | null>(null);
+    const [draftToDelete, setDraftToDelete] = useState<number | null>(null);
+
+    const loadDrafts = async () => {
+        try {
+            const data = await api.getResumeDrafts();
+            setDrafts(data);
+        } catch (error) {
+            console.error("Failed to load drafts", error);
+            toast.error("Failed to load drafts");
+        }
+    };
+
+    useEffect(() => {
+        if (isLoadDialogOpen) {
+            loadDrafts();
+        }
+    }, [isLoadDialogOpen]);
+
+    const handleSaveDraft = async () => {
+        if (!draftName) {
+            toast.error("Please enter a name for the draft");
+            return;
+        }
+
+        try {
+            await api.createResumeDraft({
+                name: draftName,
+                data: resumeData
+            });
+            toast.success("Draft saved successfully!");
+            setIsSaveDialogOpen(false);
+            setDraftName("");
+            loadDrafts(); // Refresh drafts list if needed
+        } catch (error) {
+            console.error("Failed to save draft", error);
+            toast.error("Failed to save draft");
+        }
+    };
+
+    const handleUpdateDraft = async () => {
+        if (!currentDraftId) return;
+
+        try {
+            await api.updateResumeDraft(currentDraftId, {
+                data: resumeData
+            });
+            toast.success("Draft updated successfully!");
+        } catch (error: any) {
+            console.error("Failed to update draft", error);
+            toast.error("Failed to update draft");
+        }
+    };
+
+    const handleLoadDraft = async (draftId: string) => {
+        try {
+            const id = parseInt(draftId);
+            const draft = await api.getResumeDraft(id);
+            if (draft && draft.data) {
+                setResumeData(draft.data);
+                setCurrentDraftId(id);
+                setDraftName(draft.name);
+                setIsLoadDialogOpen(false);
+                toast.success(`Loaded draft: ${draft.name}`);
+            }
+        } catch (error) {
+            console.error("Failed to load draft", error);
+            toast.error("Failed to load draft");
+        }
+    };
+
+    const handleDeleteDraft = (e: React.MouseEvent, draftId: number) => {
+        e.stopPropagation();
+        setDraftToDelete(draftId);
+    };
+
+    const confirmDelete = async () => {
+        if (!draftToDelete) return;
+
+        try {
+            await api.deleteResumeDraft(draftToDelete);
+            toast.success("Draft deleted successfully");
+            loadDrafts(); // Refresh list
+            if (currentDraftId === draftToDelete) {
+                setCurrentDraftId(null);
+                setDraftName("");
+            }
+        } catch (error) {
+            console.error("Failed to delete draft", error);
+            toast.error("Failed to delete draft");
+        } finally {
+            setDraftToDelete(null);
+        }
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -247,13 +374,99 @@ export default function ResumePage() {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
                     <div className="min-w-0 flex-1">
                         <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
-                            Resume<span className="font-bold text-orange-600">Generator</span>
+                            Resume<span className="font-bold text-[#FF3300]">Generator</span>
                         </h1>
                         <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 truncate">
                             Professional Marine CV Builder
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+                            <DialogTrigger asChild>
+                                <button
+                                    className="flex justify-center items-center gap-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl font-mono text-[10px] sm:text-xs font-bold uppercase hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all border border-zinc-200 dark:border-zinc-700"
+                                >
+                                    <Save size={14} /> <span>Save Draft</span>
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Save Resume Draft</DialogTitle>
+                                    <DialogDescription>
+                                        Give your draft a name to save it for later.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id="name"
+                                            value={draftName}
+                                            onChange={(e) => setDraftName(e.target.value)}
+                                            className="col-span-3"
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button onClick={handleSaveDraft}>Save</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
+                        <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
+                            <DialogTrigger asChild>
+                                <button
+                                    className="flex justify-center items-center gap-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl font-mono text-[10px] sm:text-xs font-bold uppercase hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all border border-zinc-200 dark:border-zinc-700"
+                                >
+                                    <FileText size={14} /> <span>Load Draft</span>
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Load Resume Draft</DialogTitle>
+                                    <DialogDescription>
+                                        Select a saved draft to load. Unsaved changes will be lost.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    {drafts.length === 0 ? (
+                                        <p className="text-center text-sm text-zinc-500">No saved drafts found.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {drafts.map((draft) => (
+                                                <div key={draft.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => handleLoadDraft(draft.id.toString())}>
+                                                    <div>
+                                                        <p className="font-medium text-sm">{draft.name}</p>
+                                                        <p className="text-xs text-zinc-500">{new Date(draft.updated_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <button onClick={(e) => handleDeleteDraft(e, draft.id)} className="p-2 text-zinc-400 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+
+                        <AlertDialog open={!!draftToDelete} onOpenChange={(open) => !open && setDraftToDelete(null)}>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your resume draft.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
                         <button
                             onClick={handleGenerate}
                             disabled={isLoading}

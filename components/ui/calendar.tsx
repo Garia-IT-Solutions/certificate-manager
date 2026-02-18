@@ -10,6 +10,13 @@ import { DayButton, DayPicker, getDefaultClassNames } from 'react-day-picker'
 
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 function Calendar({
   className,
@@ -66,11 +73,11 @@ function Calendar({
           defaultClassNames.month_caption,
         ),
         dropdowns: cn(
-          'w-full flex items-center text-sm font-medium justify-center h-[--cell-size] gap-1.5',
+          'w-full flex items-center text-sm font-medium justify-center h-[--cell-size] gap-1.5 z-10',
           defaultClassNames.dropdowns,
         ),
         dropdown_root: cn(
-          'relative has-focus:border-ring border border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md',
+          'relative has-focus:border-ring border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md',
           defaultClassNames.dropdown_root,
         ),
         dropdown: cn(
@@ -133,6 +140,49 @@ function Calendar({
               className={cn(className)}
               {...props}
             />
+          )
+        },
+        Dropdown: ({ value, onChange, options: propOptions, children, ...props }: any) => {
+          // Normalize options from either propOptions or children
+          const options = propOptions
+            ? propOptions.map((opt: { value: any; label: string }) => ({
+              value: opt.value,
+              label: opt.label,
+            }))
+            : React.Children.toArray(children).map((child: any) => ({
+              value: child.props.value,
+              label: child.props.children,
+            }))
+
+          const selected = options.find((opt: any) => opt.value?.toString() === value?.toString())
+
+          const handleChange = (val: string) => {
+            const changeEvent = {
+              target: { value: val },
+            } as React.ChangeEvent<HTMLSelectElement>
+            onChange?.(changeEvent)
+          }
+
+          return (
+            <Select value={value?.toString()} onValueChange={handleChange}>
+              <SelectTrigger className="h-8 w-fit gap-1 border-none bg-transparent px-2 py-1 text-xs font-semibold shadow-none focus:ring-0 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-900 dark:text-zinc-100">
+                <SelectValue>{selected?.label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                className="z-[10000] max-h-80 overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-md"
+              >
+                {options.map((option: any, id: number) => (
+                  <SelectItem
+                    key={`${option.value}-${id}`}
+                    value={option.value?.toString() ?? ''}
+                    className="text-xs cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-800"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )
         },
         Chevron: ({ className, orientation, ...props }) => {

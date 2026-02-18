@@ -12,7 +12,7 @@ class SeaTimeLogCreate(BaseModel):
     dept: Optional[str] = "ENGINE" # Default to ENGINE if missing
     mainEngine: Optional[str] = "" # Optional for DECK department
     bhp: Optional[float] = 0 # Optional for DECK department
-    torque: Optional[float] = 0 # Optional for DECK department
+    kw: Optional[float] = 0 # Optional for DECK department
     dwt: float
     rank: str
     signOn: datetime

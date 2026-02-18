@@ -88,7 +88,7 @@ def get_certificates(user_id: int) -> List[CertificateSummary]:
                 new_status = "VALID"
                 if delta.total_seconds() < 0:
                      new_status = "EXPIRED"
-                elif delta.days <= 120:
+                elif delta.days <= 90:
                      new_status = "EXPIRING"
             else:
                 # No expiry date = Unlimited validity

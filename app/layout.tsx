@@ -60,6 +60,11 @@ export default function RootLayout({
             {children}
             <Toaster />
           </SidebarProvider>
+          <div className="flex justify-center py-4 w-full">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono font-medium opacity-60">
+              Powered by Garia IT Solutions Pvt. Ltd. {new Date().getFullYear()}
+            </span>
+          </div>
         </ThemeProvider>
       </body>
     </html>
