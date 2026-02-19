@@ -183,6 +183,32 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                 </div>
             )}
 
+            {data.otherCertificates && data.otherCertificates.length > 0 && (
+                <div className="border border-black mb-1 text-[10px]">
+                    <div className="text-center font-bold border-b border-black bg-gray-100 p-0.5">OTHER CERTIFICATES</div>
+                    <table className="w-full text-center border-collapse">
+                        <thead>
+                            <tr className="border-b border-black">
+                                <th className="border-r border-black p-1 w-1/3 text-left">Certificate Name</th>
+                                <th className="border-r border-black p-1">Date of issue</th>
+                                <th className="border-r border-black p-1">Date of expiry</th>
+                                <th className="p-1">Issued by</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.otherCertificates.map((c, i) => (
+                                <tr key={i} className="border-b border-black last:border-0 h-5">
+                                    <td className="border-r border-black p-1 text-left">{c.name}</td>
+                                    <td className="border-r border-black p-1">{c.issueDate}</td>
+                                    <td className="border-r border-black p-1">{c.expiryDate}</td>
+                                    <td className="p-1">{c.issuedBy}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
             {data.educationalQualification && (data.educationalQualification.degree || data.educationalQualification.sscMarks) && (
                 <div className="border border-black mb-1 text-[10px]">
                     <table className="w-full text-left border-collapse">
@@ -238,7 +264,9 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                             <tr className="border-b border-black">
                                 <th className="border-r border-black p-1" rowSpan={2}>Name of Vessel / Flag</th>
                                 <th className="border-r border-black p-1" rowSpan={2}>TYPE</th>
-                                <th className="border-r border-black p-1" rowSpan={2}>GRT</th>
+                                <th className="border-r border-black p-1" rowSpan={2}>DWT</th>
+                                <th className="border-r border-black p-1" rowSpan={2}>BHP</th>
+                                <th className="border-r border-black p-1" rowSpan={2}>Main Engine</th>
                                 <th className="border-r border-black p-1" rowSpan={2}>Company</th>
                                 <th className="border-r border-black p-1" rowSpan={2}>Rank</th>
                                 <th className="border-r border-black p-1" colSpan={2}>PERIOD OF SERVICE</th>
@@ -254,7 +282,9 @@ export function ResumePreview({ data, className, id }: ResumePreviewProps) {
                                 <tr key={i} className="border-b border-black last:border-0 h-5">
                                     <td className="border-r border-black p-0.5 text-left pl-1">{s.vesselName} {s.flag ? `/ ${s.flag}` : ''}</td>
                                     <td className="border-r border-black p-0.5">{s.type}</td>
-                                    <td className="border-r border-black p-0.5">{s.grt}</td>
+                                    <td className="border-r border-black p-0.5">{s.dwt}</td>
+                                    <td className="border-r border-black p-0.5">{s.bhp}</td>
+                                    <td className="border-r border-black p-0.5">{s.engineType}</td>
                                     <td className="border-r border-black p-0.5">{s.company}</td>
                                     <td className="border-r border-black p-0.5">{s.rank}</td>
                                     <td className="border-r border-black p-0.5">{s.signOn}</td>

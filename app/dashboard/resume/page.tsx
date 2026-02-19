@@ -57,7 +57,8 @@ const INITIAL_DATA: ResumeData = {
     strengths: "",
     miscellaneousRemarks: "",
     declarationDate: new Date().toISOString().split('T')[0],
-    signatureImage: ""
+    signatureImage: "",
+    otherCertificates: []
 };
 
 function calculateDuration(signOn: string, signOff: string): string {
@@ -79,7 +80,9 @@ function transformSeaTimeLogs(logs: any[]): ResumeData['seaService'] {
         vesselName: log.vesselName || "",
         flag: log.flag || "",
         type: log.type || "",
-        grt: log.dwt?.toString() || "",
+        dwt: log.dwt?.toString() || "",
+        bhp: log.bhp?.toString() || "",
+        engineType: log.mainEngine || "",
         company: log.company || "",
         rank: log.rank || "",
         signOn: log.signOn?.split('T')[0] || "",
@@ -120,6 +123,17 @@ function transformCertificatesToStcw(certs: any[]): ResumeData['stcwCourses'] {
         expiryDate: cert.expiry?.split('T')[0] || "",
         issuedBy: cert.issuedBy || "",
         refNo: cert.id?.toString() || ""
+    }));
+}
+
+function transformCertificatesToOther(certs: any[]): ResumeData['otherCertificates'] {
+    const otherCerts = certs.filter(c => c.certType === 'Other');
+
+    return otherCerts.map(cert => ({
+        name: cert.certName || "",
+        issueDate: cert.issueDate?.split('T')[0] || "",
+        expiryDate: cert.expiry?.split('T')[0] || "",
+        issuedBy: cert.issuedBy || ""
     }));
 }
 
@@ -319,7 +333,8 @@ export default function ResumePage() {
                         documents: transformDocuments(documents),
                         cocs: transformCertificatesToCocs(certificates),
                         stcwCourses: transformCertificatesToStcw(certificates),
-                        seaService: transformSeaTimeLogs(seaTimeLogs)
+                        seaService: transformSeaTimeLogs(seaTimeLogs),
+                        otherCertificates: transformCertificatesToOther(certificates)
                     };
                 });
 

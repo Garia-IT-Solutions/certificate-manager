@@ -66,11 +66,19 @@ export interface ResumeData {
         issuedBy: string;
         refNo: string;
     }>;
+    otherCertificates: Array<{
+        name: string;
+        issueDate: string;
+        expiryDate: string;
+        issuedBy: string;
+    }>;
     seaService: Array<{
         vesselName: string;
         flag: string;
         type: string;
-        grt: string;
+        dwt: string;
+        bhp: string;
+        engineType: string;
         company: string;
         rank: string;
         signOn: string;
@@ -339,7 +347,7 @@ export const generateResumePDF = (data: ResumeData) => {
     console.log("Starting STCW Table at Y:", currentY);
     autoTable(doc, {
         startY: currentY,
-        head: [['', 'Place of', 'Date of', 'Date of', 'Issued by', 'Certif No'], ['Course Name', 'issue', 'issue', 'expiry', '', '']],
+        head: [['Course Name', 'Place of Issue', 'Date of Issue', 'Date of Expiry', 'Issued by', 'Certif No']],
         body: stcwRows,
         theme: 'grid',
         headStyles: { fillColor: [255, 255, 255], textColor: 0, fontSize: 9, fontStyle: 'bold', lineWidth: 0.1, lineColor: 0, halign: 'center' },
@@ -349,6 +357,39 @@ export const generateResumePDF = (data: ResumeData) => {
     });
 
     currentY = getFinalY() + 5;
+
+    // --- OTHER CERTIFICATES ---
+    if (data.otherCertificates && data.otherCertificates.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("times", "bold");
+        if (isNaN(currentY)) currentY = 250;
+
+        // Check for page break
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 20;
+        }
+
+        doc.text("OTHER CERTIFICATES", pageWidth / 2, currentY, { align: "center" });
+        doc.line(margin, currentY + 1, pageWidth - margin, currentY + 1);
+        currentY += 2;
+
+        const otherRows = data.otherCertificates.map(c => [c.name, c.issueDate, c.expiryDate || "-", c.issuedBy]);
+
+        console.log("Starting Other Certificates Table at Y:", currentY);
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Certificate Name', 'Date of Issue', 'Date of Expiry', 'Issued by']],
+            body: otherRows,
+            theme: 'grid',
+            headStyles: { fillColor: [255, 255, 255], textColor: 0, fontSize: 9, fontStyle: 'bold', lineWidth: 0.1, lineColor: 0, halign: 'center' },
+            styles: { fontSize: 9, cellPadding: 1, lineColor: 0, lineWidth: 0.1, font: 'times', halign: 'center' },
+            columnStyles: { 0: { halign: 'left' } },
+            margin: { left: margin, right: margin }
+        });
+
+        currentY = getFinalY() + 5;
+    }
 
     // --- EDUCATIONAL QUALIFICATION ---
     if (data.educationalQualification && (data.educationalQualification.degree || data.educationalQualification.sscMarks)) {
@@ -430,17 +471,33 @@ export const generateResumePDF = (data: ResumeData) => {
     currentY += 3;
 
     const seaRows = data.seaService.map(s => [
-        `${s.vesselName} ${s.flag ? '/ ' + s.flag : ''}`, s.type, s.grt, s.company, s.rank, s.signOn, s.signOff, s.totalDuration
+        `${s.vesselName} ${s.flag ? '/ ' + s.flag : ''}`, s.type, s.dwt, s.bhp, s.engineType, s.company, s.rank, s.signOn, s.signOff, s.totalDuration
     ]);
 
     autoTable(doc, {
         startY: currentY,
-        head: [['Name of Vessel / Flag', 'TYPE', 'GRT', 'Name of Company', 'Rank', 'PERIOD OF SERVICE', 'TOTAL SERVICE'], ['', '', '', '', '', 'From     To', '']],
+        head: [
+            [
+                { content: 'Name of Vessel / Flag', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'TYPE', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'DWT', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'BHP', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'Engine Type', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'Name of Company', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'Rank', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'PERIOD OF SERVICE', colSpan: 2, styles: { halign: 'center' } },
+                { content: 'TOTAL SERVICE', rowSpan: 2, styles: { valign: 'middle' } }
+            ],
+            [
+                { content: 'From', styles: { halign: 'center' } },
+                { content: 'To', styles: { halign: 'center' } }
+            ]
+        ],
         body: seaRows,
         theme: 'grid',
         headStyles: { fillColor: [255, 255, 255], textColor: 0, fontSize: 8, fontStyle: 'bold', lineWidth: 0.1, lineColor: 0, halign: 'center' },
         styles: { fontSize: 8, cellPadding: 1, lineColor: 0, lineWidth: 0.1, font: 'times', halign: 'center' },
-        columnStyles: { 0: { halign: 'left' } },
+        columnStyles: { 0: { halign: 'left', cellWidth: 25 } }, // Adjusted width for vessel name
         margin: { left: margin, right: margin }
     });
 

@@ -128,16 +128,18 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
         onUpdate(newData);
     };
 
-    const addArrayItem = (section: 'seaService' | 'stcwCourses' | 'cocs' | 'documents') => {
+    const addArrayItem = (section: 'seaService' | 'stcwCourses' | 'cocs' | 'documents' | 'otherCertificates') => {
         let newItem: any = {};
         if (section === 'seaService') {
-            newItem = { vesselName: "", flag: "", type: "", grt: "", company: "", rank: "", signOn: "", signOff: "", totalDuration: "" };
+            newItem = { vesselName: "", flag: "", type: "", dwt: "", bhp: "", engineType: "", company: "", rank: "", signOn: "", signOff: "", totalDuration: "" };
         } else if (section === 'cocs') {
             newItem = { name: "", grade: "", issueDate: "", expiryDate: "", number: "", issuedBy: "" };
         } else if (section === 'stcwCourses') {
             newItem = { course: "", place: "", issueDate: "", expiryDate: "", issuedBy: "", refNo: "" };
         } else if (section === 'documents') {
             newItem = { name: "", number: "", issueDate: "", expiryDate: "", placeOfIssue: "", remarks: "" };
+        } else if (section === 'otherCertificates') {
+            newItem = { name: "", issueDate: "", expiryDate: "", issuedBy: "" };
         }
 
         const newData = { ...data, [section]: [...(data[section] as any[]), newItem] };
@@ -383,6 +385,33 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                 </div>
             )}
 
+            {!hiddenSections.includes("otherCertificates") && data.otherCertificates && (
+                <div>
+                    <CustomSectionHeader title="Other Certificates" sectionId="otherCertificates" icon={Award} sectionKey="otherCertificates" />
+                    <AnimatePresence>
+                        {activeSection === "otherCertificates" && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                <div className="p-4 sm:p-5 bg-zinc-50/50 dark:bg-zinc-900/30 rounded-xl border border-zinc-100 dark:border-zinc-800/50 space-y-4 mb-4">
+                                    {data.otherCertificates.map((cert, index) => (
+                                        <div key={index} className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 relative">
+                                            <button onClick={() => removeArrayItem("otherCertificates", index)} className="absolute top-3 right-3 p-1.5 bg-red-50 text-red-500 dark:bg-red-900/20 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Trash2 size={14} /></button>
+                                            <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Certificate {index + 1}</h5>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                                                <InputGroup className="sm:col-span-2 lg:col-span-1" label="Certificate Name" value={cert.name} onChange={(v: string) => handleArrayChange("otherCertificates", index, "name", v)} />
+                                                <InputGroup label="Issued By" value={cert.issuedBy} onChange={(v: string) => handleArrayChange("otherCertificates", index, "issuedBy", v)} />
+                                                <InputGroup label="Issue Date" type="date" value={cert.issueDate} onChange={(v: string) => handleArrayChange("otherCertificates", index, "issueDate", v)} />
+                                                <InputGroup label="Expiry Date" type="date" value={cert.expiryDate} onChange={(v: string) => handleArrayChange("otherCertificates", index, "expiryDate", v)} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => addArrayItem("otherCertificates")} className="w-full py-3 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-all flex items-center justify-center gap-2"><Plus size={14} /> Add Other Certificate</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
             {!hiddenSections.includes("eduQual") && (
                 <div>
                     <CustomSectionHeader title="Educational Qualification" sectionId="eduQual" icon={BookOpen} sectionKey="educationalQualification" />
@@ -460,7 +489,9 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                                                 <InputGroup className="sm:col-span-2 lg:col-span-1" label="Vessel Name" value={item.vesselName} onChange={(v: string) => handleArrayChange("seaService", index, "vesselName", v)} />
                                                 <InputGroup label="Flag" value={item.flag} onChange={(v: string) => handleArrayChange("seaService", index, "flag", v)} />
                                                 <InputGroup label="Type" value={item.type} onChange={(v: string) => handleArrayChange("seaService", index, "type", v)} />
-                                                <InputGroup label="GRT" value={item.grt} onChange={(v: string) => handleArrayChange("seaService", index, "grt", v)} />
+                                                <InputGroup label="DWT" value={item.dwt} onChange={(v: string) => handleArrayChange("seaService", index, "dwt", v)} />
+                                                <InputGroup label="BHP" value={item.bhp} onChange={(v: string) => handleArrayChange("seaService", index, "bhp", v)} />
+                                                <InputGroup label="Main Engine" value={item.engineType} onChange={(v: string) => handleArrayChange("seaService", index, "engineType", v)} />
                                                 <InputGroup label="Company" value={item.company} onChange={(v: string) => handleArrayChange("seaService", index, "company", v)} />
                                                 <InputGroup label="Rank" value={item.rank} onChange={(v: string) => handleArrayChange("seaService", index, "rank", v)} />
                                                 <InputGroup label="Sign On" type="date" value={item.signOn} onChange={(v: string) => handleArrayChange("seaService", index, "signOn", v)} />
@@ -547,6 +578,11 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                         {hiddenSections.includes("stcw") && (
                             <button onClick={() => showSection("stcw")} className="px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
                                 <Award size={14} /> STCW Courses
+                            </button>
+                        )}
+                        {hiddenSections.includes("otherCertificates") && (
+                            <button onClick={() => showSection("otherCertificates")} className="px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400 hover:border-orange-500 hover:text-orange-500 transition-all flex items-center gap-2">
+                                <Award size={14} /> Other Certificates
                             </button>
                         )}
                         {hiddenSections.includes("sea") && (
