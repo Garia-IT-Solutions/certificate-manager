@@ -284,8 +284,7 @@ function UploadModal({ isOpen, onClose, onUpload, categories }: any) {
                 c.color === 'amber' ? "bg-amber-500 border-amber-400" :
                   c.color === 'indigo' ? "bg-indigo-500 border-indigo-400" :
                     "bg-zinc-500 border-zinc-400"
-    })),
-    { id: "Custom", label: "Custom", icon: Plus, activeClass: "bg-zinc-500 border-zinc-400" }
+    }))
   ];
 
   if (!isOpen) return null;
@@ -338,12 +337,7 @@ function UploadModal({ isOpen, onClose, onUpload, categories }: any) {
               </div>
 
             </div>
-            {docType === 'Custom' && (
-              <div className="relative group">
-                <label className="text-[10px] font-bold uppercase text-zinc-500 mb-1.5 block px-1">Custom Category Name</label>
-                <input type="text" value={customDocType} onChange={(e) => setCustomDocType(e.target.value)} placeholder="Enter new category name..." className="w-full p-3 sm:p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-medium text-white outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
-              </div>
-            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1">
                 <div className="flex justify-between items-center mb-1.5 px-1">

@@ -228,7 +228,7 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
             imo: initialData.imo, offNo: initialData.offNo, flag: initialData.flag,
             vesselName: initialData.vesselName, type: initialData.type, company: initialData.company,
             dept: initialData.dept, rank: initialData.rank,
-            mainEngine: initialData.mainEngine, bhp: initialData.bhp.toString(),
+            mainEngine: initialData.mainEngine, bhp: (initialData.bhp > 200000 ? initialData.bhp / 1000 : initialData.bhp).toString(),
             kw: initialData.kw?.toString() || "", dwt: initialData.dwt?.toString() || "",
             signOn: initialData.signOn, signOff: initialData.signOff
          });
@@ -313,8 +313,8 @@ function RecordModal({ isOpen, onClose, onSubmit, initialData, userDepartment }:
                               <input className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.mainEngine} onChange={(e) => setFormData({ ...formData, mainEngine: e.target.value })} />
                            </div>
                            <div className="grid grid-cols-2 gap-2">
-                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Propulsion (kBHP)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp ? parseFloat(formData.bhp) / 1000 : ""} onChange={(e) => setFormData({ ...formData, bhp: (parseFloat(e.target.value) * 1000).toString() })} /></div>
-                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Power (W)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.kw} onChange={(e) => setFormData({ ...formData, kw: e.target.value })} /></div>
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Propulsion (BHP)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.bhp} onChange={(e) => setFormData({ ...formData, bhp: e.target.value })} /></div>
+                              <div><label className="text-[9px] uppercase font-bold text-zinc-400 mb-1 block">Power (kW)</label><input type="number" className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-xs font-medium outline-none focus:border-[#FF3300]" value={formData.kw} onChange={(e) => setFormData({ ...formData, kw: e.target.value })} /></div>
                            </div>
                         </div>
                      )}
@@ -450,7 +450,8 @@ export default function SeaTimePage() {
       let totalDays = 0, maxBhp = 0, maxKw = 0;
       entries.forEach(r => {
          totalDays += (r.duration.years * 365) + (r.duration.months * 30) + r.duration.days;
-         if (r.bhp > maxBhp) maxBhp = r.bhp;
+         const normalizedBhp = r.bhp > 200000 ? r.bhp / 1000 : r.bhp;
+         if (normalizedBhp > maxBhp) maxBhp = normalizedBhp;
          if (r.kw > maxKw) maxKw = r.kw;
       });
       const totalYears = Math.floor(totalDays / 365);
@@ -459,7 +460,7 @@ export default function SeaTimePage() {
       return {
          totalTime: `${totalYears}y ${totalMonths}m`,
          vesselCount: entries.length,
-         maxPower: (maxBhp / 1000).toFixed(0) + "k",
+         maxPower: (maxBhp / 1000).toFixed(1),
          maxKw: (maxKw / 1000).toFixed(1) + "k"
       };
    }, [entries]);
@@ -596,10 +597,11 @@ export default function SeaTimePage() {
                   <input type="text" placeholder="Search by vessel or company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2.5 pl-9 pr-3 text-xs outline-none focus:border-[#FF3300]" />
                </div>
                <div className="relative shrink-0 flex gap-2 sm:gap-3">
-                  <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
+                  <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
                      {sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                     <span className="text-[10px] font-bold uppercase">Date</span>
+                     <span className="text-[10px] font-bold uppercase">Date {sortOrder === 'asc' ? "(Ascending)" : "(Descending)"}</span>
                   </button>
+
                   <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex-1 sm:flex-none px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors">
                      <Filter size={12} /> <span className="text-[10px] font-bold uppercase">Filter</span> {(filters.rank || filters.type || filters.company) && <span className="w-1.5 h-1.5 rounded-full bg-[#FF3300]" />}
                   </button>
@@ -661,7 +663,7 @@ export default function SeaTimePage() {
                               <p className="text-[9px] uppercase text-zinc-400 font-bold mb-1">Main Engine</p>
                               <p className="text-xs font-bold text-zinc-900 dark:text-white truncate mb-2" title={record.mainEngine}>{record.mainEngine}</p>
                               <div className="grid grid-cols-2 gap-2">
-                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Propulsion</span><span className="text-xs font-mono font-bold text-[#FF3300]">{(record.bhp / 1000).toFixed(0)}k BHP</span></div>
+                                 <div><span className="text-[9px] text-zinc-500 block uppercase">Propulsion</span><span className="text-xs font-mono font-bold text-[#FF3300]">{((record.bhp > 200000 ? record.bhp / 1000 : record.bhp) / 1000).toFixed(1)}k BHP</span></div>
                                  <div><span className="text-[9px] text-zinc-500 block uppercase">Power</span><span className="text-xs font-mono font-bold text-emerald-500">{(record.kw / 1000).toFixed(1)}k kW</span></div>
                               </div>
                            </div>

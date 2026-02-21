@@ -334,7 +334,7 @@ export default function ProfilePage() {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full border-b border-zinc-200 dark:border-zinc-800 pb-6">
                     <div className="min-w-0 flex-1">
                         <h1 className="text-3xl sm:text-4xl font-light tracking-tighter text-zinc-900 dark:text-white truncate">
-                            My <span className="font-bold text-[#FF3300]">Profile</span>
+                            My<span className="font-bold text-[#FF3300]">Profile</span>
                         </h1>
                         <p className="font-mono text-[10px] sm:text-xs text-zinc-400 uppercase tracking-widest mt-1 truncate">
                             Manage your personal information & settings
@@ -450,19 +450,29 @@ export default function ProfilePage() {
                                             <select
                                                 name="department"
                                                 value={formData.department || "ENGINE"}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value, rank: "" }))}
                                                 className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
                                             >
                                                 <option value="ENGINE">ENGINE</option>
                                                 <option value="DECK">DECK</option>
                                             </select>
-                                            <input
+                                            <select
                                                 name="rank"
                                                 value={formData.rank || ""}
                                                 onChange={handleInputChange}
-                                                placeholder="Rank"
                                                 className="w-full text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-3 text-xs font-bold focus:border-orange-500 outline-none transition-colors"
-                                            />
+                                            >
+                                                <option value="">Select Rank</option>
+                                                {(formData.department === "DECK" ? [
+                                                    "Master", "Chief Officer", "2nd Officer", "3rd Officer",
+                                                    "Deck Cadet", "Bosun", "AB Seaman", "OS Seaman", "Tr Seaman"
+                                                ] : [
+                                                    "Chief Engineer", "2nd Engineer", "3rd Engineer", "4th Engineer",
+                                                    "Junior Engineer", "Engine Cadet", "Motorman", "Oiler", "Fitter", "Tr Seaman"
+                                                ]).map(r => (
+                                                    <option key={r} value={r}>{r}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </>
                                 ) : (

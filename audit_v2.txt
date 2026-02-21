@@ -1,0 +1,153 @@
+# npm audit report
+
+ajv  <8.18.0
+Severity: moderate
+ajv has ReDoS when using `$data` option - https://github.com/advisories/GHSA-2g4f-4pwh-qvx6
+fix available via `npm audit fix --force`
+Will install electron-builder@26.8.1, which is a breaking change
+node_modules/ajv
+  @develar/schema-utils  *
+  Depends on vulnerable versions of ajv
+  Depends on vulnerable versions of ajv-keywords
+  node_modules/@develar/schema-utils
+    app-builder-lib  *
+    Depends on vulnerable versions of @develar/schema-utils
+    Depends on vulnerable versions of @electron/universal
+    Depends on vulnerable versions of dmg-builder
+    Depends on vulnerable versions of ejs
+    Depends on vulnerable versions of electron-builder-squirrel-windows
+    Depends on vulnerable versions of minimatch
+    Depends on vulnerable versions of read-config-file
+    Depends on vulnerable versions of tar
+    node_modules/app-builder-lib
+      dmg-builder  >=5.0.0
+      Depends on vulnerable versions of app-builder-lib
+      Depends on vulnerable versions of dmg-license
+      node_modules/dmg-builder
+        electron-builder  19.25.0 || >=20.24.0
+        Depends on vulnerable versions of app-builder-lib
+        Depends on vulnerable versions of dmg-builder
+        Depends on vulnerable versions of read-config-file
+        node_modules/electron-builder
+      electron-builder-squirrel-windows  20.24.0 - 26.0.2
+      Depends on vulnerable versions of app-builder-lib
+      Depends on vulnerable versions of archiver
+      node_modules/electron-builder-squirrel-windows
+  ajv-keywords  2.1.1 - 4.0.1
+  Depends on vulnerable versions of ajv
+  node_modules/ajv-keywords
+  dmg-license  >=0.3.0
+  Depends on vulnerable versions of ajv
+  node_modules/dmg-license
+
+electron  <35.7.5
+Severity: moderate
+Electron has ASAR Integrity Bypass via resource modification - https://github.com/advisories/GHSA-vmqv-hx8q-j7mg
+fix available via `npm audit fix --force`
+Will install electron@40.6.0, which is a breaking change
+node_modules/electron
+
+jspdf  <4.2.0
+Severity: high
+jsPDF Affected by Client-Side/Server-Side Denial of Service via Malicious GIF Dimensions - https://github.com/advisories/GHSA-67pg-wm7f-q7fj
+fix available via `npm audit fix`
+node_modules/jspdf
+
+minimatch  <10.2.1
+Severity: high
+minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern - https://github.com/advisories/GHSA-3ppc-4f35-3m26
+fix available via `npm audit fix --force`
+Will install serve-handler@1.0.0, which is a breaking change
+node_modules/app-builder-lib/node_modules/minimatch
+node_modules/config-file-ts/node_modules/minimatch
+node_modules/filelist/node_modules/minimatch
+node_modules/minimatch
+node_modules/readdir-glob/node_modules/minimatch
+  @electron/asar  3.2.1 - 3.4.1
+  Depends on vulnerable versions of glob
+  Depends on vulnerable versions of minimatch
+  node_modules/@electron/asar
+    @electron/universal  >=1.0.1
+    Depends on vulnerable versions of @electron/asar
+    Depends on vulnerable versions of dir-compare
+    Depends on vulnerable versions of minimatch
+    node_modules/@electron/universal
+  dir-compare  *
+  Depends on vulnerable versions of minimatch
+  node_modules/dir-compare
+  filelist  >=0.0.2
+  Depends on vulnerable versions of minimatch
+  node_modules/filelist
+    jake  >=10.6.1
+    Depends on vulnerable versions of filelist
+    node_modules/jake
+      ejs  >=3.1.2
+      Depends on vulnerable versions of jake
+      node_modules/ejs
+  glob  3.0.0 - 10.5.0
+  Depends on vulnerable versions of minimatch
+  node_modules/config-file-ts/node_modules/glob
+  node_modules/glob
+    archiver-utils  >=0.2.0
+    Depends on vulnerable versions of glob
+    node_modules/archiver-utils
+    node_modules/zip-stream/node_modules/archiver-utils
+      archiver  >=0.20.0
+      Depends on vulnerable versions of archiver-utils
+      Depends on vulnerable versions of readdir-glob
+      Depends on vulnerable versions of zip-stream
+      node_modules/archiver
+      zip-stream  0.8.0 - 6.0.1
+      Depends on vulnerable versions of archiver-utils
+      node_modules/zip-stream
+    config-file-ts  *
+    Depends on vulnerable versions of glob
+    node_modules/config-file-ts
+      read-config-file  >=6.3.0
+      Depends on vulnerable versions of config-file-ts
+      node_modules/read-config-file
+  readdir-glob  *
+  Depends on vulnerable versions of minimatch
+  node_modules/readdir-glob
+  serve-handler  >=1.1.0
+  Depends on vulnerable versions of minimatch
+  node_modules/serve-handler
+
+next  0.9.9 - 15.5.9
+Severity: critical
+Next.js Server-Side Request Forgery in Server Actions - https://github.com/advisories/GHSA-fr5h-rqp8-mj6g
+Next.js Cache Poisoning - https://github.com/advisories/GHSA-gp8f-8m3g-qvj9
+Denial of Service condition in Next.js image optimization - https://github.com/advisories/GHSA-g77x-44xx-532m
+Next.js Allows a Denial of Service (DoS) with Server Actions - https://github.com/advisories/GHSA-7m27-7ghc-44w9
+Information exposure in Next.js dev server due to lack of origin verification - https://github.com/advisories/GHSA-3h52-269p-cp9r
+Next.js Affected by Cache Key Confusion for Image Optimization API Routes - https://github.com/advisories/GHSA-g5qg-72qw-gw5v
+Next.js authorization bypass vulnerability - https://github.com/advisories/GHSA-7gfc-8cq8-jh5f
+Next.js Improper Middleware Redirect Handling Leads to SSRF - https://github.com/advisories/GHSA-4342-x723-ch2f
+Next.js Content Injection Vulnerability for Image Optimization - https://github.com/advisories/GHSA-xv57-4mr9-wg8v
+Next.js Race Condition to Cache Poisoning - https://github.com/advisories/GHSA-qpjv-v59x-3qc4
+Authorization Bypass in Next.js Middleware - https://github.com/advisories/GHSA-f82v-jwr5-mffw
+Next Vulnerable to Denial of Service with Server Components - https://github.com/advisories/GHSA-mwv6-3258-q52c
+Next has a Denial of Service with Server Components - Incomplete Fix Follow-Up - https://github.com/advisories/GHSA-5j59-xgg2-r9c4
+Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration - https://github.com/advisories/GHSA-9g9p-9gw9-jx7f
+Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components - https://github.com/advisories/GHSA-h25m-26qc-wcjf
+fix available via `npm audit fix --force`
+Will install next@14.2.35, which is outside the stated dependency range
+node_modules/next
+
+tar  <=7.5.7
+Severity: high
+Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS - https://github.com/advisories/GHSA-r6q2-hw4h-h46w
+node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal - https://github.com/advisories/GHSA-34x7-hfp2-rc4v
+Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction - https://github.com/advisories/GHSA-83g3-92jg-28cx
+node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization - https://github.com/advisories/GHSA-8qq5-rm4j-mr97
+fix available via `npm audit fix --force`
+Will install electron-builder@26.8.1, which is a breaking change
+node_modules/tar
+
+27 vulnerabilities (5 moderate, 21 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
