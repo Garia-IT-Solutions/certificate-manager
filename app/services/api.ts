@@ -2,7 +2,7 @@ import { SYSTEM_CONFIG } from "@/lib/config";
 
 const API_URL = SYSTEM_CONFIG.app.apiBaseUrl;
 const getHeaders = () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     return {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

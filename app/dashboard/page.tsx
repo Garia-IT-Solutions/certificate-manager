@@ -491,8 +491,11 @@ const MOCK_NOTIFS = [
   { id: 4, type: "info", title: "Crew Message", msg: "Shift roster updated by Chief Officer.", time: "1d ago" },
 ];
 
-function NotificationSummary({ count }: { count: number }) {
-  if (count === 0) {
+function NotificationSummary({ notifs }: { notifs: typeof MOCK_NOTIFS }) {
+  const count = notifs.length;
+  const latest = notifs.length > 0 ? notifs[0] : null;
+
+  if (count === 0 || !latest) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center w-full">
         <Bell className="text-zinc-300 mb-2 shrink-0" size={24} />
@@ -521,20 +524,25 @@ function NotificationSummary({ count }: { count: number }) {
       </div>
 
       <div className="p-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-xl flex items-center gap-3 shadow-sm w-full min-w-0">
-        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
-          <Info size={14} />
+        <div className={cn(
+          "p-1.5 rounded-lg shrink-0",
+          latest.type === 'info' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" :
+            latest.type === 'warning' ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400" :
+              "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+        )}>
+          {latest.type === 'info' ? <Info size={14} /> : latest.type === 'warning' ? <AlertCircle size={14} /> : <Check size={14} />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex justify-between items-center mb-0.5 gap-2">
             <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-              System Update
+              {latest.title}
             </p>
             <span className="text-[9px] text-zinc-400 font-mono shrink-0">
-              Just now
+              {latest.time}
             </span>
           </div>
           <p className="text-[10px] text-zinc-500 truncate">
-            Dashboard v2.4.1 is now live.
+            {latest.msg}
           </p>
         </div>
       </div>
@@ -746,13 +754,37 @@ export default function DashboardPage() {
         const data = await api.getDashboardSummary();
         setDashboardData(data);
 
-        const newNotifs = (data.alerts || []).map((alert: any, i: number) => ({
-          id: i,
-          type: alert.daysRemaining <= 30 ? 'warning' : 'info',
-          title: `${alert.name} Expiry`,
-          msg: `Expiring in ${alert.daysRemaining} days.`,
-          time: 'Now'
-        }));
+        const calculateActualDays = (dateStr: string) => {
+          const target = new Date(dateStr);
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const expiry = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+          const diffTime = expiry.getTime() - today.getTime();
+          return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        };
+
+        const newNotifs = (data.alerts || []).map((alert: any, i: number) => {
+          const actualDays = alert.expiryDate ? calculateActualDays(alert.expiryDate) : alert.daysRemaining;
+
+          let msg = `Expiring in ${actualDays} days.`;
+          let type = actualDays <= 30 ? 'warning' : 'info';
+
+          if (actualDays < 0) {
+            msg = `Expired ${Math.abs(actualDays)} days ago.`;
+            type = 'warning';
+          } else if (actualDays === 0) {
+            msg = `Expires today.`;
+            type = 'warning';
+          }
+
+          return {
+            id: i,
+            type,
+            title: `${alert.name} Expiry`,
+            msg,
+            time: 'Now'
+          };
+        });
         setNotifications(newNotifs);
 
       } catch (error) {
@@ -836,7 +868,7 @@ export default function DashboardPage() {
               id="notifications"
               title="Notifications"
               icon={Bell}
-              summary={<NotificationSummary count={notifications.length} />}
+              summary={<NotificationSummary notifs={notifications} />}
             >
               <NotificationDetail
                 notifs={notifications}

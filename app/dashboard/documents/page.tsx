@@ -1187,6 +1187,8 @@ export default function DocumentsPage() {
         isOpen={isCategoryManagerOpen}
         onClose={() => setIsCategoryManagerOpen(false)}
         onCategoriesChange={loadCategories}
+        scope="document"
+        counts={stats.categorized}
       />
 
       {/* Floating Action Button for Categories */}

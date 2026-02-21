@@ -245,7 +245,7 @@ export default function ProfilePage() {
     useEffect(() => {
         async function fetchProfile() {
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("token") || sessionStorage.getItem("token");
                 if (!token) {
                     router.push("/login");
                     return;
@@ -262,6 +262,7 @@ export default function ProfilePage() {
                     loadProfileData(data);
                 } else if (res.status === 401) {
                     localStorage.removeItem("token");
+                    sessionStorage.removeItem("token");
                     router.push("/login");
                 } else {
                     loadProfileData(MOCK_PROFILE);
@@ -287,7 +288,7 @@ export default function ProfilePage() {
 
     const handleSave = async () => {
         try {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("token") || sessionStorage.getItem("token");
             if (!token) {
                 toast.error("You are not logged in.");
                 router.push("/login");

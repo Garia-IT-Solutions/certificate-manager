@@ -55,9 +55,10 @@ interface CategoryManagerProps {
     onClose: () => void;
     onCategoriesChange: () => void;
     scope?: string;
+    counts?: Record<string, number>;
 }
 
-export function CategoryManager({ isOpen, onClose, onCategoriesChange, scope = "document" }: CategoryManagerProps) {
+export function CategoryManager({ isOpen, onClose, onCategoriesChange, scope = "document", counts = {} }: CategoryManagerProps) {
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -198,6 +199,7 @@ export function CategoryManager({ isOpen, onClose, onCategoriesChange, scope = "
                                             </div>
                                             <div className="min-w-0">
                                                 <p className={cn("text-xs font-bold truncate", isActive ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400")}>{cat.label}</p>
+                                                <p className={cn("text-[10px] mt-0.5", isActive ? "text-orange-500" : "text-zinc-400")}>{counts[cat.label] || 0} {scope === 'certificate' ? 'certificates' : 'documents'}</p>
                                             </div>
                                         </div>
                                         {isActive && (
@@ -224,7 +226,9 @@ export function CategoryManager({ isOpen, onClose, onCategoriesChange, scope = "
                                     </div>
                                     <div className="text-center">
                                         <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{label || "Category Name"}</h3>
-                                        <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">0 Documents</p>
+                                        <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">
+                                            {counts[label] || 0} {scope === 'certificate' ? 'Certificates' : 'Documents'}
+                                        </p>
                                     </div>
                                     <div className={cn("px-2 py-1 rounded text-[10px] font-bold uppercase", previewTheme.bgSoft, previewTheme.text)}>
                                         Preview

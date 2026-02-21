@@ -34,7 +34,7 @@ export function AppSidebar() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
         if (!token) return;
 
         const res = await fetch('http://localhost:8000/profile', {
@@ -61,6 +61,7 @@ export function AppSidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     localStorage.removeItem("remembered_user");
     router.push("/login");
   };

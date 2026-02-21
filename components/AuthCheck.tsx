@@ -7,7 +7,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
     } else {
@@ -16,7 +16,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (!authorized) {
-    return null; 
+    return null;
   }
 
   return <>{children}</>;

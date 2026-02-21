@@ -256,7 +256,7 @@ export default function ResumePage() {
             try {
                 setIsLoading(true);
 
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("token") || sessionStorage.getItem("token");
                 const [documents, certificates, seaTimeLogs, profile] = await Promise.all([
                     api.getDocuments().catch(() => []),
                     api.getCertificates().catch(() => []),
