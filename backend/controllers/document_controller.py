@@ -85,7 +85,6 @@ def get_documents(user_id: int, archived: bool = False) -> List[DocumentSummary]
                 cursor.execute('UPDATE documents SET status = ? WHERE id = ? AND user_id = ?', (new_status, d['id'], user_id))
                 d['status'] = new_status
                 updates_made = True
-
         except Exception as e:
             print(f"Error checking status for doc {d.get('id')}: {e}")
             # Fallback to existing status if error

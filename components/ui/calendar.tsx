@@ -18,6 +18,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
 function Calendar({
   className,
   classNames,
@@ -191,7 +199,6 @@ function Calendar({
               <ChevronLeftIcon className={cn('size-4', className)} {...props} />
             )
           }
-
           if (orientation === 'right') {
             return (
               <ChevronRightIcon
@@ -200,7 +207,6 @@ function Calendar({
               />
             )
           }
-
           return (
             <ChevronDownIcon className={cn('size-4', className)} {...props} />
           )
