@@ -5,7 +5,21 @@ import platform
 from sqlite3 import Connection
 from backend.utils.security import get_password_hash
 
-DATABASE_NAME = "certmanager.db"
+def get_db_path():
+    # Get the directory of the current file (backend/database.py)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go one level up to get to project root (marine-engineer-portal)
+    root_dir = os.path.dirname(current_dir)
+    
+    # Store in a 'data' directory in project root
+    data_dir = os.path.join(root_dir, "data")
+    
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        
+    return os.path.join(data_dir, "certmanager.db")
+
+DATABASE_NAME = get_db_path()
 
 def get_db_connection() -> Connection:
     conn = sqlite3.connect(DATABASE_NAME)

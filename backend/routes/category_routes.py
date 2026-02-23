@@ -13,7 +13,6 @@ async def get_categories(scope: str = "document", current_user: Profile = Depend
     user_id = current_user.id
     conn = get_db_connection()
     cursor = conn.cursor()
-
     # Fetch system categories OR user's categories, filtered by scope
     cursor.execute('''
         SELECT * FROM document_categories 
@@ -21,7 +20,6 @@ async def get_categories(scope: str = "document", current_user: Profile = Depend
     ''', (user_id, scope))
     rows = cursor.fetchall()
     conn.close()
-
     return [Category(**dict(row)) for row in rows]
 
 @router.post("/categories", response_model=Category)
@@ -40,7 +38,6 @@ async def create_category(category: CategoryCreate, current_user: Profile = Depe
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
-
     return Category(id=new_id, user_id=user_id, is_system=False, **category.model_dump())
 
 @router.put("/categories/{category_id}", response_model=Category)
@@ -78,7 +75,6 @@ async def update_category(category_id: int, updates: CategoryUpdate, current_use
     cursor.execute('SELECT * FROM document_categories WHERE id = ?', (category_id,))
     updated_row = cursor.fetchone()
     conn.close()
-
     return Category(**dict(updated_row))
 
 @router.delete("/categories/{category_id}")

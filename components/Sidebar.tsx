@@ -48,6 +48,10 @@ export function AppSidebar() {
           const fullName = `${data.first_name} ${data.last_name}`;
           setUserName(fullName.trim() || "Cpt. User");
           setAvatarUrl(data.avatar_url || "");
+
+          // Dispatch a custom event to notify other components (like AuthCheck) that data is loaded?
+          // Or just rely on local state here. 
+          // Actually, AuthCheck handles the auth logic.
         }
       } catch (e) { }
     }

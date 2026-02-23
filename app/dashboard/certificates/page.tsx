@@ -1425,6 +1425,7 @@ export default function CertificatesPage() {
             onClose={() => setIsTypeModalOpen(false)}
             onSelect={(id) => { setActiveCategory(id); setIsTypeModalOpen(false); }}
             activeCategory={activeCategory}
+
             counts={stats.categorized}
             categories={categories}
           />
