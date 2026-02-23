@@ -32,10 +32,10 @@ export function DatePicker({
     const [open, setOpen] = React.useState(false)
 
     const formatDate = (date: Date) => {
-        return new Intl.DateTimeFormat("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
+        return new Intl.DateTimeFormat("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "2-digit",
         }).format(date)
     }
 
@@ -45,14 +45,19 @@ export function DatePicker({
                 <Button
                     variant={"outline"}
                     className={cn(
-                        "w-full justify-start text-left font-normal bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-6 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:border-orange-500 transition-all text-zinc-900 dark:text-zinc-100",
+                        "w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:border-[#FF3300] transition-all text-zinc-900 dark:text-zinc-100 shadow-sm",
                         !date && "text-muted-foreground",
                         className
                     )}
                     disabled={disabled}
                 >
-                    <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                    {date ? formatDate(date) : <span className="text-zinc-400 dark:text-zinc-600">{placeholder}</span>}
+                    <div className="shrink-0 text-zinc-400 group-hover:text-[#FF3300] transition-colors">
+                        <CalendarIcon className="h-4 w-4" />
+                    </div>
+                    <span className="flex-1 text-center truncate mx-1 tracking-tight">
+                        {date ? formatDate(date) : <span className="text-zinc-400 dark:text-zinc-600">{placeholder}</span>}
+                    </span>
+                    <div className="shrink-0 w-4 h-4 opacity-0" aria-hidden="true" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 z-[9999]" align="start">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useId } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import {
@@ -485,14 +486,25 @@ function CertificatesContent({ data }: { data?: DashboardData['certificates'] })
 }
 
 const MOCK_NOTIFS = [
-  { id: 1, type: "info", title: "System Update", msg: "Dashboard v2.4.1 is now live.", time: "10m ago" },
-  { id: 2, type: "warning", title: "Weather Alert", msg: "High swell warning in Sector 4.", time: "2h ago" },
-  { id: 3, type: "success", title: "Sync Complete", msg: "Cloud backup finished successfully.", time: "5h ago" },
-  { id: 4, type: "info", title: "Crew Message", msg: "Shift roster updated by Chief Officer.", time: "1d ago" },
+  { id: 1, type: "info", title: "System Update", msg: "Dashboard v2.4.1 is now live.", time: "10m ago", category: "", href: "" },
+  { id: 2, type: "warning", title: "Weather Alert", msg: "High swell warning in Sector 4.", time: "2h ago", category: "", href: "" },
+  { id: 3, type: "success", title: "Sync Complete", msg: "Cloud backup finished successfully.", time: "5h ago", category: "", href: "" },
+  { id: 4, type: "info", title: "Crew Message", msg: "Shift roster updated by Chief Officer.", time: "1d ago", category: "", href: "" },
 ];
 
-function NotificationSummary({ count }: { count: number }) {
-  if (count === 0) {
+function getCategoryHref(category: string): string {
+  switch (category?.toLowerCase()) {
+    case 'certificate': return '/dashboard/certificates';
+    case 'document': return '/dashboard/documents';
+    default: return '';
+  }
+}
+
+function NotificationSummary({ notifs }: { notifs: typeof MOCK_NOTIFS }) {
+  const count = notifs.length;
+  const latest = notifs.length > 0 ? notifs[0] : null;
+
+  if (count === 0 || !latest) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center w-full">
         <Bell className="text-zinc-300 mb-2 shrink-0" size={24} />
@@ -521,20 +533,25 @@ function NotificationSummary({ count }: { count: number }) {
       </div>
 
       <div className="p-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-xl flex items-center gap-3 shadow-sm w-full min-w-0">
-        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
-          <Info size={14} />
+        <div className={cn(
+          "p-1.5 rounded-lg shrink-0",
+          latest.type === 'info' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" :
+            latest.type === 'warning' ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400" :
+              "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+        )}>
+          {latest.type === 'info' ? <Info size={14} /> : latest.type === 'warning' ? <AlertCircle size={14} /> : <Check size={14} />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex justify-between items-center mb-0.5 gap-2">
             <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-              System Update
+              {latest.title}
             </p>
             <span className="text-[9px] text-zinc-400 font-mono shrink-0">
-              Just now
+              {latest.time}
             </span>
           </div>
           <p className="text-[10px] text-zinc-500 truncate">
-            Dashboard v2.4.1 is now live.
+            {latest.msg}
           </p>
         </div>
       </div>
@@ -549,9 +566,14 @@ function NotificationDetail({
   notifs: typeof MOCK_NOTIFS;
   setNotifs: React.Dispatch<React.SetStateAction<typeof MOCK_NOTIFS>>;
 }) {
+  const router = useRouter();
 
   const removeNotif = (id: number) => {
     setNotifs(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleNotifClick = (href: string) => {
+    if (href) router.push(href);
   };
 
   return (
@@ -562,44 +584,61 @@ function NotificationDetail({
       </div>
 
       <div className="space-y-0 relative w-full">
-        {notifs.length > 0 && <div className="absolute left-[19px] top-4 bottom-4 w-px bg-zinc-200 dark:bg-zinc-800 z-0 hidden sm:block" />}
+        {notifs.length > 0 && <div className="absolute left-[32px] top-[28px] bottom-[28px] w-px bg-zinc-200 dark:bg-zinc-800 z-0 hidden sm:block" />}
 
         <AnimatePresence>
           {notifs.length > 0 ? (
-            notifs.map((n) => (
-              <motion.div
-                key={n.id}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="relative z-10 group w-full"
-              >
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer border border-transparent hover:border-zinc-100 dark:hover:border-zinc-800 w-full">
-                  <div className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center border-4 border-white dark:border-zinc-950 shrink-0",
-                    n.type === 'info' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
-                      n.type === 'warning' ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" :
-                        "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                  )}>
-                    {n.type === 'info' ? <Info size={16} /> : n.type === 'warning' ? <AlertCircle size={16} /> : <Check size={16} />}
-                  </div>
-                  <div className="flex-1 min-w-0 pt-1">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0">
-                      <h5 className="text-sm font-bold text-zinc-900 dark:text-white truncate pr-2">{n.title}</h5>
-                      <span className="text-[10px] text-zinc-400 font-mono shrink-0">{n.time}</span>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed pr-6">{n.msg}</p>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeNotif(n.id); }}
-                    className="sm:opacity-0 sm:group-hover:opacity-100 p-2 text-zinc-300 hover:text-zinc-500 transition-all absolute top-2 right-2 sm:static sm:self-center"
+            notifs.map((n) => {
+              const isNavigable = !!n.href;
+              return (
+                <motion.div
+                  key={n.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  className="relative z-10 group w-full"
+                >
+                  <div
+                    onClick={() => handleNotifClick(n.href)}
+                    className={cn(
+                      "flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 rounded-2xl transition-all border border-transparent w-full",
+                      isNavigable
+                        ? "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:border-zinc-100 dark:hover:border-zinc-800 hover:shadow-sm"
+                        : "cursor-default hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20"
+                    )}
                   >
-                    <X size={14} />
-                  </button>
-                </div>
-              </motion.div>
-            ))
+                    <div className={cn(
+                      "h-10 w-10 rounded-full flex items-center justify-center border-4 border-white dark:border-zinc-950 shrink-0 transition-transform",
+                      isNavigable && "group-hover:scale-105",
+                      n.type === 'info' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
+                        n.type === 'warning' ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" :
+                          "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    )}>
+                      {n.type === 'info' ? <Info size={16} /> : n.type === 'warning' ? <AlertCircle size={16} /> : <Check size={16} />}
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0">
+                        <h5 className="text-sm font-bold text-zinc-900 dark:text-white truncate pr-2">{n.title}</h5>
+                        <span className="text-[10px] text-zinc-400 font-mono shrink-0">{n.time}</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed pr-6">{n.msg}</p>
+                      {isNavigable && (
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-300 group-hover:text-orange-400 transition-colors mt-1 flex items-center gap-1">
+                          View details <ArrowRight size={9} />
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeNotif(n.id); }}
+                      className="sm:opacity-0 sm:group-hover:opacity-100 p-2 text-zinc-300 hover:text-zinc-500 transition-all absolute top-2 right-2 sm:static sm:self-center"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center w-full">
               <div className="h-12 w-12 shrink-0 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-300">
@@ -746,13 +785,42 @@ export default function DashboardPage() {
         const data = await api.getDashboardSummary();
         setDashboardData(data);
 
-        const newNotifs = (data.alerts || []).map((alert: any, i: number) => ({
-          id: i,
-          type: alert.daysRemaining <= 30 ? 'warning' : 'info',
-          title: `${alert.name} Expiry`,
-          msg: `Expiring in ${alert.daysRemaining} days.`,
-          time: 'Now'
-        }));
+        const calculateActualDays = (dateStr: string) => {
+          const target = new Date(dateStr);
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const expiry = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+          const diffTime = expiry.getTime() - today.getTime();
+          return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        };
+
+        const newNotifs = (data.alerts || []).map((alert: any, i: number) => {
+          const actualDays = alert.expiryDate ? calculateActualDays(alert.expiryDate) : alert.daysRemaining;
+
+          let msg = `Expiring in ${actualDays} days.`;
+          let type = actualDays <= 30 ? 'warning' : 'info';
+
+          if (actualDays < 0) {
+            msg = `Expired ${Math.abs(actualDays)} days ago.`;
+            type = 'warning';
+          } else if (actualDays === 0) {
+            msg = `Expires today.`;
+            type = 'warning';
+          }
+
+          const category = alert.type ?? '';
+          const href = getCategoryHref(category);
+
+          return {
+            id: i,
+            type,
+            title: `${alert.name} Expiry`,
+            msg,
+            time: 'Now',
+            category,
+            href,
+          };
+        });
         setNotifications(newNotifs);
 
       } catch (error) {
@@ -836,7 +904,7 @@ export default function DashboardPage() {
               id="notifications"
               title="Notifications"
               icon={Bell}
-              summary={<NotificationSummary count={notifications.length} />}
+              summary={<NotificationSummary notifs={notifications} />}
             >
               <NotificationDetail
                 notifs={notifications}

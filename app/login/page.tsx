@@ -47,6 +47,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (token) {
+      router.push("/dashboard");
+    }
+
+    const rememberedEmail = localStorage.getItem("remembered_user");
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, [router]);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -80,8 +93,13 @@ export default function LoginPage() {
     try {
       const response = await api.login({ email, password });
 
-      localStorage.setItem("token", response.access_token);
-      if (rememberMe) localStorage.setItem("remembered_user", email);
+      if (rememberMe) {
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("remembered_user", email);
+      } else {
+        sessionStorage.setItem("token", response.access_token);
+        localStorage.removeItem("remembered_user");
+      }
 
       setIsLoading(false);
       setIsRedirecting(true);

@@ -1,10 +1,176 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ResumeData } from "@/app/lib/pdf-generator";
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, FileText, Anchor, Award, BookOpen, MapPin, User, AlertCircle, Upload } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, FileText, Anchor, Award, BookOpen, MapPin, User, AlertCircle, Upload, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+// ── Shared option lists (mirrored from sea-time page) ────────────────────────
+
+const VESSEL_TYPES = [
+    "Oil Tanker", "Gas Tanker", "Product Tanker", "Oil/Chem Tanker", "Chemical Tanker", "Bitumen Tanker",
+    "VLCC", "ULCC",
+    "Container Ship", "Bulk Carrier", "General Cargo", "Cruise Ship",
+    "Ro-Ro", "FSO", "FPSO", "PSV", "Bunker barge"
+];
+
+const ALL_RANKS = [
+    // Engine
+    "Chief Engineer", "Second Engineer", "Third Engineer", "Fourth Engineer",
+    "Junior Engineer", "TME", "ETO", "EO", "Tr EO", "Fitter", "Motorman", "Wiper", "Tr Wiper",
+    // Deck
+    "Master", "Chief Officer", "Second Officer", "Third Officer", "Fourth Officer",
+    "Cadet", "Bosun", "Chief Cook", "Pumpman", "Able Seaman", "Ordinary Seaman", "Tr Seaman", "GS"
+];
+
+const FLAGS = [
+    "Panama", "Liberia", "Marshall Islands", "Singapore", "Malta", "Bahamas", "China", "Greece", "Japan",
+    "United States", "Cyprus", "Norway", "United Kingdom", "Indonesia", "Germany", "South Korea",
+    "Denmark", "Italy", "India", "Philippines", "Vietnam", "Saudi Arabia", "Turkey", "Russia", "Netherlands",
+    "Malaysia", "France", "Spain", "Belgium", "Sweden", "Brazil", "Canada", "Australia", "Thailand"
+].sort();
+
+const NATIONALITIES = [
+    "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Argentine", "Armenian",
+    "Australian", "Austrian", "Azerbaijani", "Bahamian", "Bahraini", "Bangladeshi", "Barbadian",
+    "Belarusian", "Belgian", "Belizean", "Beninese", "Bhutanese", "Bolivian", "Bosnian", "Brazilian",
+    "British", "Bruneian", "Bulgarian", "Burkinabe", "Burmese", "Burundian", "Cambodian", "Cameroonian",
+    "Canadian", "Chilean", "Chinese", "Colombian", "Congolese", "Costa Rican", "Croatian", "Cuban",
+    "Cypriot", "Czech", "Danish", "Dominican", "Dutch", "Ecuadorian", "Egyptian", "Emirati",
+    "Eritrean", "Estonian", "Ethiopian", "Fijian", "Filipino", "Finnish", "French", "Gabonese",
+    "Gambian", "Georgian", "German", "Ghanaian", "Greek", "Guatemalan", "Guinean", "Guyanese",
+    "Haitian", "Honduran", "Hungarian", "Icelandic", "Indian", "Indonesian", "Iranian", "Iraqi",
+    "Irish", "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Jordanian", "Kazakh",
+    "Kenyan", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Liberian", "Libyan",
+    "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malawian", "Malaysian", "Maldivian",
+    "Malian", "Maltese", "Mauritanian", "Mauritian", "Mexican", "Moldovan", "Mongolian", "Montenegrin",
+    "Moroccan", "Mozambican", "Namibian", "Nepalese", "New Zealander", "Nicaraguan", "Nigerian",
+    "Norwegian", "Omani", "Pakistani", "Panamanian", "Paraguayan", "Peruvian", "Polish", "Portuguese",
+    "Qatari", "Romanian", "Russian", "Rwandan", "Saudi", "Senegalese", "Serbian", "Sierra Leonean",
+    "Singaporean", "Slovak", "Slovenian", "Somali", "South African", "South Korean", "Spanish",
+    "Sri Lankan", "Sudanese", "Swedish", "Swiss", "Syrian", "Taiwanese", "Tajik", "Tanzanian",
+    "Thai", "Togolese", "Trinidadian", "Tunisian", "Turkish", "Turkmen", "Ugandan", "Ukrainian",
+    "Uruguayan", "Uzbek", "Venezuelan", "Vietnamese", "Yemeni", "Zambian", "Zimbabwean"
+].sort();
+
+// ── SearchableDropdown (same component as sea-time page) ─────────────────────
+
+function SearchableDropdown({
+    options,
+    value,
+    onChange,
+    placeholder,
+    className,
+    allowCustom = false,
+    hasError = false,
+}: {
+    options: string[];
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+    allowCustom?: boolean;
+    hasError?: boolean;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const filteredOptions = useMemo(
+        () => options.filter((opt) => opt.toLowerCase().includes(searchTerm.toLowerCase())),
+        [options, searchTerm]
+    );
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+                if (!allowCustom && !options.includes(searchTerm) && searchTerm !== "") {
+                    setSearchTerm(value);
+                }
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef, allowCustom, options, searchTerm, value]);
+
+    useEffect(() => {
+        setSearchTerm(value);
+    }, [value]);
+
+    const handleSelect = (option: string) => {
+        onChange(option);
+        setSearchTerm(option);
+        setIsOpen(false);
+    };
+
+    return (
+        <div ref={wrapperRef} className={cn("relative", className)}>
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                    "flex items-center justify-between w-full rounded-lg px-2.5 py-2 text-xs font-medium cursor-text transition-all border bg-white dark:bg-black",
+                    isOpen
+                        ? "border-orange-500 ring-1 ring-orange-500/20"
+                        : hasError
+                            ? "border-red-500 ring-1 ring-red-500/50"
+                            : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                )}
+            >
+                <input
+                    type="text"
+                    className="bg-transparent outline-none w-full text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                    placeholder={placeholder}
+                    value={searchTerm}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        if (!isOpen) setIsOpen(true);
+                        if (allowCustom) onChange(e.target.value);
+                    }}
+                />
+                <ChevronDown
+                    size={14}
+                    className={cn("text-zinc-400 transition-transform shrink-0 ml-1", isOpen && "rotate-180 text-orange-500")}
+                />
+            </div>
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 5, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="absolute z-50 w-full mt-1 bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-52 overflow-y-auto custom-scrollbar"
+                    >
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((opt) => (
+                                <button
+                                    key={opt}
+                                    onClick={() => handleSelect(opt)}
+                                    className={cn(
+                                        "w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center justify-between group",
+                                        value === opt
+                                            ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                                            : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                                    )}
+                                >
+                                    <span>{opt}</span>
+                                    {value === opt && <Check size={12} className="text-orange-500" />}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-3 py-3 text-[10px] text-zinc-400 text-center italic">
+                                {allowCustom ? "Custom value active" : "No matches found"}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
 
 interface ResumeFormProps {
     data: ResumeData;
@@ -216,12 +382,22 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                                             <InputGroup label="Middle Name" value={data.personalInfo.middleName} onChange={(v: string) => handleChange("personalInfo", "middleName", v)} />
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                                            <InputGroup label="Nationality" value={data.personalInfo.nationality} onChange={(v: string) => handleChange("personalInfo", "nationality", v)} hasError={errors["personalInfo.nationality"]} />
+                                            <div>
+                                                <label className={cn("text-[10px] uppercase font-bold mb-1 flex items-center gap-1", errors["personalInfo.nationality"] ? "text-red-500" : "text-zinc-500")}>
+                                                    Nationality {errors["personalInfo.nationality"] && <AlertCircle size={10} />}
+                                                </label>
+                                                <SearchableDropdown options={NATIONALITIES} value={data.personalInfo.nationality || ""} onChange={(v) => handleChange("personalInfo", "nationality", v)} placeholder="e.g. Indian" allowCustom hasError={errors["personalInfo.nationality"]} />
+                                            </div>
                                             <InputGroup label="Date of Birth" type="date" value={data.personalInfo.dob} onChange={(v: string) => handleChange("personalInfo", "dob", v)} hasError={errors["personalInfo.dob"]} />
                                             <InputGroup label="Place of Birth" value={data.personalInfo.placeOfBirth} onChange={(v: string) => handleChange("personalInfo", "placeOfBirth", v)} />
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                            <InputGroup label="Post Applied For" value={data.personalInfo.postApplied} onChange={(v: string) => handleChange("personalInfo", "postApplied", v)} hasError={errors["personalInfo.postApplied"]} />
+                                            <div>
+                                                <label className={cn("text-[10px] uppercase font-bold mb-1 flex items-center gap-1", errors["personalInfo.postApplied"] ? "text-red-500" : "text-zinc-500")}>
+                                                    Post Applied For {errors["personalInfo.postApplied"] && <AlertCircle size={10} />}
+                                                </label>
+                                                <SearchableDropdown options={ALL_RANKS} value={data.personalInfo.postApplied || ""} onChange={(v) => handleChange("personalInfo", "postApplied", v)} placeholder="Select Rank" hasError={errors["personalInfo.postApplied"]} />
+                                            </div>
                                             <InputGroup label="Date Available" type="date" value={data.personalInfo.dateAvailable} onChange={(v: string) => handleChange("personalInfo", "dateAvailable", v)} />
                                         </div>
                                     </div>
@@ -487,13 +663,22 @@ export function ResumeForm({ data, onUpdate, onGenerate, errors }: ResumeFormPro
                                             <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">Vessel {index + 1}</h4>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                                                 <InputGroup className="sm:col-span-2 lg:col-span-1" label="Vessel Name" value={item.vesselName} onChange={(v: string) => handleArrayChange("seaService", index, "vesselName", v)} />
-                                                <InputGroup label="Flag" value={item.flag} onChange={(v: string) => handleArrayChange("seaService", index, "flag", v)} />
-                                                <InputGroup label="Type" value={item.type} onChange={(v: string) => handleArrayChange("seaService", index, "type", v)} />
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">Flag</label>
+                                                    <SearchableDropdown options={FLAGS} value={item.flag || ""} onChange={(v) => handleArrayChange("seaService", index, "flag", v)} placeholder="Search Flag" allowCustom />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">Type</label>
+                                                    <SearchableDropdown options={VESSEL_TYPES} value={item.type || ""} onChange={(v) => handleArrayChange("seaService", index, "type", v)} placeholder="Select Type" />
+                                                </div>
                                                 <InputGroup label="DWT" value={item.dwt} onChange={(v: string) => handleArrayChange("seaService", index, "dwt", v)} />
                                                 <InputGroup label="BHP" value={item.bhp} onChange={(v: string) => handleArrayChange("seaService", index, "bhp", v)} />
                                                 <InputGroup label="Main Engine" value={item.engineType} onChange={(v: string) => handleArrayChange("seaService", index, "engineType", v)} />
                                                 <InputGroup label="Company" value={item.company} onChange={(v: string) => handleArrayChange("seaService", index, "company", v)} />
-                                                <InputGroup label="Rank" value={item.rank} onChange={(v: string) => handleArrayChange("seaService", index, "rank", v)} />
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold mb-1 block text-zinc-500">Rank</label>
+                                                    <SearchableDropdown options={ALL_RANKS} value={item.rank || ""} onChange={(v) => handleArrayChange("seaService", index, "rank", v)} placeholder="Select Rank" />
+                                                </div>
                                                 <InputGroup label="Sign On" type="date" value={item.signOn} onChange={(v: string) => handleArrayChange("seaService", index, "signOn", v)} />
                                                 <InputGroup label="Sign Off" type="date" value={item.signOff} onChange={(v: string) => handleArrayChange("seaService", index, "signOff", v)} />
                                                 <InputGroup className="sm:col-span-2 lg:col-span-1" label="Total Dur." value={item.totalDuration} onChange={(v: string) => handleArrayChange("seaService", index, "totalDuration", v)} />

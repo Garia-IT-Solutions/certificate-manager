@@ -53,10 +53,10 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.34.0",
     "input-otp": "^1.4.2",
-    "jspdf": "^4.1.0",
+    "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",
-    "next": "14.1.0",
+    "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "^18",
     "react-day-picker": "^9.13.2",
@@ -64,7 +64,7 @@
     "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^4.6.2",
     "recharts": "^3.7.0",
-    "serve-handler": "^6.1.5",
+    "serve-handler": "6.1.6",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.0",
@@ -80,8 +80,8 @@
     "autoprefixer": "^10.4.24",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^28.2.0",
-    "electron-builder": "^24.9.1",
+    "electron": "^35.7.5",
+    "electron-builder": "26.8.1",
     "typescript": "^5.9.3",
     "wait-on": "^7.2.0"
   },
@@ -107,5 +107,10 @@
       "target": "nsis",
       "icon": "buildResources/icon.ico"
     }
+  },
+  "overrides": {
+    "ajv": "^8.17.1",
+    "minimatch": "^10.0.0",
+    "path-to-regexp": "^6.3.0"
   }
 }

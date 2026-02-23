@@ -873,8 +873,7 @@ export default function CertificatesPage() {
           id: c.id,
           name: c.certName || "Untitled Certificate",
           issuer: c.issuedBy || "Unknown Issuer",
-          certType: (c.certType?.toLowerCase() === "other" || !c.certType) ? "Other Certificate" :
-            (c.certType === "coc") ? "Certificate of Competency (CoC)" : c.certType,
+          certType: c.certType || "Other",
           issueDate: c.issueDate || new Date().toISOString(),
           expiryDate: c.expiry || null,
           status: (["VALID", "EXPIRING", "EXPIRED"].includes(c.status) ? c.status : "VALID"),
@@ -1272,7 +1271,9 @@ export default function CertificatesPage() {
                           {cert.name}
                         </h3>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono flex items-center gap-1.5 truncate">
-                          <span className="font-bold text-orange-600 dark:text-orange-400 truncate">{cert.certType}</span>
+                          <span className="font-bold text-orange-600 dark:text-orange-400 truncate">
+                            {CERTIFICATE_TYPES.find(t => t.value === cert.certType)?.label || cert.certType}
+                          </span>
                           <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
                           <span className="truncate">{cert.issuer}</span>
                           <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
@@ -1436,6 +1437,7 @@ export default function CertificatesPage() {
         onClose={() => setIsCategoryManagerOpen(false)}
         onCategoriesChange={() => { }} // useEffect handles refresh
         scope="certificate"
+        counts={stats.categorized}
       />
 
       <div className="fixed bottom-6 right-6 z-50">
