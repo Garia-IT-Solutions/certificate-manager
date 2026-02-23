@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        :root {
+            --bg-page: #09090b;
+            --bg-card: rgba(24, 24, 27, 0.95);
+            --border: #27272a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --accent: #f97316;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: transparent;
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .installer-card {
+            width: 100%;
+            max-width: 440px;
+            box-sizing: border-box;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            -webkit-app-region: drag;
+            position: relative;
+        }
+
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo-img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+        }
+
+        h1 strong {
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-top: 8px;
+            margin-bottom: 30px;
+        }
+
+        #statusText {
+            margin-top: 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: monospace;
+            min-height: 20px;
+            width: 100%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+
+        #spinner {
+            width: 60px;
+            display: block;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .status-success #statusText {
+            color: #10b981;
+        }
+
+        .status-error #statusText {
+            color: #ef4444;
+        }
+
+        .status-rollback #statusText {
+            color: #fbbf24;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            -webkit-app-region: no-drag;
+            transition: all 0.2s ease;
+            z-index: 99;
+        }
+
+        .close-btn:hover {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="installer-card" id="card">
+
+        <div class="close-btn" id="closeBtn">✕</div>
+
+        <div class="logo-container">
+            <img src="../buildResources/icon.ico" class="logo-img">
+        </div>
+
+        <h1>MarineTracker <strong>Pro</strong></h1>
+        <div class="subtitle" id="versionLabel">CHECKING FOR UPDATES</div>
+
+        <div id="statusText">Connecting to update server...</div>
+
+        <img src="loading.gif" id="spinner">
+    </div>
+
+    <script>
+        const statusText = document.getElementById('statusText');
+        const versionLabel = document.getElementById('versionLabel');
+        const spinner = document.getElementById('spinner');
+        const card = document.getElementById('card');
+
+        window.updater.onProgress((data) => {
+            if (data.version) {
+                versionLabel.textContent = `UPDATING TO v${data.version}`;
+            }
+
+            if (data.phase === 'download') {
+                statusText.textContent = `Downloading (${data.percent}%): ${data.status || ''}`;
+                statusText.style.color = '#a1a1aa';
+            }
+            else if (data.phase === 'verify') {
+                statusText.textContent = 'Verifying file integrity...';
+            }
+            else if (data.phase === 'extract') {
+                statusText.textContent = `Installing (${data.percent}%): ${data.status || ''}`;
+                statusText.style.color = '#a1a1aa';
+            }
+        });
+
+        window.updater.onComplete(() => {
+            spinner.classList.add('hidden');
+            card.classList.add('status-success');
+            statusText.textContent = 'SUCCESS! LAUNCHING...';
+            versionLabel.textContent = 'UPDATE COMPLETE';
+        });
+
+        window.updater.onError((msg) => {
+            spinner.classList.add('hidden');
+            card.classList.add('status-error');
+            statusText.textContent = 'ERROR: ' + msg;
+            versionLabel.textContent = 'UPDATE FAILED';
+            document.getElementById('closeBtn').style.display = 'flex';
+        });
+
+        window.updater.onRollback((msg) => {
+            spinner.classList.add('hidden');
+            card.classList.add('status-rollback');
+            statusText.textContent = msg || 'Update failed. Previous version restored.';
+            versionLabel.textContent = 'RESTORED PREVIOUS VERSION';
+            document.getElementById('closeBtn').style.display = 'flex';
+        });
+
+        document.getElementById('closeBtn').addEventListener('click', () => {
+            window.updater.close();
+        });
+    </script>
+</body>
+
+</html>
