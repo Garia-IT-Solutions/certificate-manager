@@ -1,6 +1,6 @@
 {
-    "version": "0.0.7",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.7/app.zip",
-    "sha256": "0ec32f7ec6acc2728dcf0fb9100db225bd8f91b9b84d4e031616fbc4a10c82d6",
-    "releaseNotes": "Emergency Fix: Corrected syntax error in updater swapper script. VBScript launch flow restored."
+    "version": "0.0.8",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.8/app.zip",
+    "sha256": "149237aad2852f0c6403d1e9a51a82fc498cfa83ef94f1382764650740144b5b",
+    "releaseNotes": "Fix: Removed accidental DevTools auto-open left over from debugging. Fully stable release."
 }
