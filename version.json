@@ -1,6 +1,6 @@
 {
-    "version": "0.0.1",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.1/app.zip",
-    "sha256": "1f0529af2e507b13fb13e58464250f58289c224867bb2aa3d8789c3ba63dc6b4",
-    "releaseNotes": "Initial release"
+    "version": "0.0.2",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.2/app.zip",
+    "sha256": "13d70405ba4d8e7e3a1ea8b629dcbea8f00f8e41d2fe4f236636af64f75d67b4",
+    "releaseNotes": "test"
 }
