@@ -215,7 +215,7 @@ export default function LoginPage() {
                 <Anchor size={28} strokeWidth={2} />
               </div>
               <h1 className="text-2xl font-light tracking-tighter text-zinc-900 dark:text-white mb-1">
-                Captain's<span className="font-bold">Log</span>
+                Mariner's<span className="font-bold">Log</span>
               </h1>
 
               <div className="flex items-center justify-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-400">

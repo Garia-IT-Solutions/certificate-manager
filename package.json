@@ -1,7 +1,7 @@
 {
-  "name": "marine-tracker-pro",
+  "name": "certificate-manager",
   "productName": "MarineTracker Pro",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Professional Marine CV Builder & Compliance Tracker",
   "author": {
     "name": "Garia IT Solutions Pvt Ltd",
@@ -81,7 +81,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^35.7.5",
-    "electron-builder": "26.8.1",
+    "electron-builder": "24.13.3",
     "typescript": "^5.9.3",
     "wait-on": "^7.2.0"
   },
@@ -90,7 +90,7 @@
     "productName": "MarineTracker Pro",
     "copyright": "Copyright © 2026 Garia IT Solutions Pvt Ltd",
     "directories": {
-      "output": "release",
+      "output": "release-new",
       "buildResources": "buildResources"
     },
     "files": [
@@ -109,7 +109,6 @@
     }
   },
   "overrides": {
-    "ajv": "^8.17.1",
     "minimatch": "^10.0.0",
     "path-to-regexp": "^6.3.0"
   }

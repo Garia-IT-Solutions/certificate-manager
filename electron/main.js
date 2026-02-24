@@ -153,8 +153,22 @@ function createWindow() {
 
   if (app.isPackaged) {
     const server = http.createServer((req, res) => serve(req, res, { public: path.join(__dirname, '..', 'out') }));
-    server.listen(0, () => {
-      mainWindow.loadURL(`http://localhost:${server.address().port}`);
+
+    let currentPort = 38472;
+
+    server.on('error', (e) => {
+      if (e.code === 'EADDRINUSE') {
+        console.warn(`[Server] Port ${currentPort} is in use. Forcefully freeing it to preserve Keep Signed In...`);
+        require('child_process').exec(`for /f "tokens=5" %a in ('netstat -aon ^| findstr :${currentPort}') do taskkill /f /pid %a`, (err) => {
+          setTimeout(() => {
+            server.listen(currentPort, '127.0.0.1');
+          }, 1500);
+        });
+      }
+    });
+
+    server.listen(currentPort, '127.0.0.1', () => {
+      mainWindow.loadURL(`http://localhost:${currentPort}`);
     });
   } else {
     mainWindow.loadURL('http://127.0.0.1:3000');
@@ -162,6 +176,7 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.webContents.openDevTools();
   });
 }
 
