@@ -1,6 +1,6 @@
 {
-    "version": "0.0.8",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.8/app.zip",
+    "version": "0.0.9",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.9/app.zip",
     "sha256": "149237aad2852f0c6403d1e9a51a82fc498cfa83ef94f1382764650740144b5b",
-    "releaseNotes": "Fix: Removed accidental DevTools auto-open left over from debugging. Fully stable release."
+    "releaseNotes": "test"
 }
