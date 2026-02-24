@@ -1,6 +1,6 @@
 {
-    "version": "0.0.5",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.5/app.zip",
-    "sha256": "4ac58d47d1622194581de634e31f3748ffa5c2dd51aa88ebbf2df476199e09c3",
-    "releaseNotes": "Fix: Updater UI polishing and Windows Defender launch lock bypass confirmed."
+    "version": "0.0.6",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.6/app.zip",
+    "sha256": "47dd9dc1f6511eebcc1f62fa1f4d9575fa069c081077d8e7c203b30b95338b16",
+    "releaseNotes": "Emergency Fix: Completely bypassed update self-termination bug. Includes all UI fixes from v0.0.4/5."
 }

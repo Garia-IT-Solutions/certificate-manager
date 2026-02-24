@@ -381,32 +381,15 @@ async function performUpdate(versionInfo) {
       status: 'Stopping running instances...', version: versionInfo.version
     });
 
-    const killCmds = [
-      'taskkill /F /IM "MarineTracker Pro.exe" /T',
-      'taskkill /F /IM "backend-server.exe" /T',
-      'taskkill /F /IM "MarineTracker.exe" /T'
-    ];
-    for (const cmd of killCmds) {
-      try { execSync(cmd + ' 2>nul', { stdio: 'ignore' }); } catch (e) { }
-    }
-    // Wait for Windows to release file locks
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // ── PHASE 3: Backup existing installation ─────────────────
+    // ── PHASE 3: Extract to temp directory out-of-process ─────
     sendUpdateProgress({
-      phase: 'extract', percent: 5,
-      status: 'Backing up current version...', version: versionInfo.version
+      phase: 'extract', percent: 0,
+      status: 'Extracting update payload...', version: versionInfo.version
     });
 
-    if (fs.existsSync(INSTALL_DIR)) {
-      fs.renameSync(INSTALL_DIR, backupDir);
-      backupExists = true;
-      console.log('[Updater] Backup created:', backupDir);
-    }
-    fs.mkdirSync(INSTALL_DIR, { recursive: true });
+    const extractTempDir = path.join(os.tmpdir(), `marine-extract-${Date.now()}`);
+    fs.mkdirSync(extractTempDir, { recursive: true });
 
-    // ── PHASE 3: Extract new version ──────────────────────────
-    // Disable ASAR interception for real file I/O
     process.noAsar = true;
 
     const AdmZip = require('adm-zip');
@@ -416,7 +399,7 @@ async function performUpdate(versionInfo) {
     let count = 0;
 
     for (const entry of entries) {
-      const fullPath = path.join(INSTALL_DIR, entry.entryName);
+      const fullPath = path.join(extractTempDir, entry.entryName);
 
       if (entry.isDirectory) {
         fs.mkdirSync(fullPath, { recursive: true });
@@ -430,89 +413,84 @@ async function performUpdate(versionInfo) {
       if (count % 5 === 0 || count === total) {
         sendUpdateProgress({
           phase: 'extract',
-          percent: 5 + Math.round((count / total) * 80),
+          percent: Math.round((count / total) * 90),
           status: entry.entryName,
           version: versionInfo.version
         });
       }
     }
 
-    // Re-enable ASAR
     process.noAsar = false;
 
-    console.log('[Updater] Extraction complete. Files:', total);
+    // Handle nested folder from zip extraction if necessary
+    let actualSourceDir = extractTempDir;
+    const targetExe = path.join(INSTALL_DIR, 'MarineTracker Pro.exe');
 
-    // ── PHASE 4: Handle nested folders ────────────────────────
-    // (Same logic as installer — find exe if it ended up in a subfolder)
-    let targetExe = path.join(INSTALL_DIR, 'MarineTracker Pro.exe');
-
-    if (!fs.existsSync(targetExe)) {
-      const foundPath = findExeRecursive(INSTALL_DIR, 'MarineTracker Pro.exe');
-      if (foundPath) {
-        const nestedDir = path.dirname(foundPath);
-        console.log('[Updater] Found nested app at:', nestedDir);
-        const items = fs.readdirSync(nestedDir);
-        for (const item of items) {
-          const src = path.join(nestedDir, item);
-          const dest = path.join(INSTALL_DIR, item);
-          if (fs.existsSync(dest)) {
-            fs.rmSync(dest, { recursive: true, force: true });
-          }
-          fs.renameSync(src, dest);
-        }
-        targetExe = path.join(INSTALL_DIR, 'MarineTracker Pro.exe');
+    if (!fs.existsSync(path.join(extractTempDir, 'MarineTracker Pro.exe'))) {
+      const found = findExeRecursive(extractTempDir, 'MarineTracker Pro.exe');
+      if (found) {
+        actualSourceDir = path.dirname(found);
       }
     }
 
-    // ── PHASE 4: Verify extraction ────────────────────────────
-    if (!fs.existsSync(targetExe)) {
-      throw new Error('Extraction verification failed: MarineTracker Pro.exe not found');
-    }
-
     sendUpdateProgress({
-      phase: 'extract', percent: 90,
-      status: 'Finalizing...', version: versionInfo.version
+      phase: 'extract', percent: 100,
+      status: 'Applying update...', version: versionInfo.version
     });
 
-    // ── PHASE 4: Write health stamp ───────────────────────────
-    const stateFile = path.join(INSTALL_DIR, 'update_state.json');
-    fs.writeFileSync(stateFile, JSON.stringify({
-      status: 'pending_verification',
-      backup: backupDir,
-      version: versionInfo.version,
-      previousVersion: APP_VERSION,
-      timestamp: Date.now()
-    }, null, 2));
-
-    // ── SUCCESS: Cleanup temp + relaunch ──────────────────────
-    try { fs.unlinkSync(tempZip); } catch (_) { }
-
     sendUpdateComplete();
-    console.log('[Updater] Update successful! Relaunching...');
+    console.log('[Updater] Extraction to temp complete! Creating swap script...');
 
-    // Wait 2 seconds so user sees the success state
+    // Wait couple seconds for success UI
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Launch new version with clean environment (bypassing Defender locks)
-    const vbsPath = path.join(os.tmpdir(), `marine-launcher-${Date.now()}.vbs`);
-    const vbsCode = `
+    // ── PHASE 4: Swap script (The only way to overwrite a running EXE on Windows)
+    const batPath = path.join(os.tmpdir(), `marine-swap-${Date.now()}.bat`);
+    const vbsPath = path.join(os.tmpdir(), `marine-swap-${Date.now()}.vbs`);
+
+    const batCode = \`@echo off
+timeout /t 2 /nobreak > NUL
+taskkill /F /IM "MarineTracker Pro.exe" /T > NUL 2>&1
+taskkill /F /IM "backend-server.exe" /T > NUL 2>&1
+taskkill /F /IM "MarineTracker.exe" /T > NUL 2>&1
+timeout /t 1 /nobreak > NUL
+
+:: Empty the old installation folder
+rd /s /q "\${INSTALL_DIR}"
+timeout /t 1 /nobreak > NUL
+mkdir "\${INSTALL_DIR}"
+
+:: Copy the new extracted files over seamlessly
+xcopy "\${actualSourceDir}\\*" "\${INSTALL_DIR}\\" /E /I /H /Y /Q > NUL
+
+:: Launch the updated application
+start "" "\${targetExe}"
+
+:: Cleanup leftover zip
+del /q "\${tempZip}" > NUL 2>&1
+
+:: Delete this bat file
+del "%~f0"
+\`;
+
+    fs.writeFileSync(batPath, batCode, 'utf8');
+
+    // VBS wrapper to run the BAT file completely invisibly (no black flash)
+    const vbsCode = \`
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = "${INSTALL_DIR}"
-WshShell.Run """${targetExe}""", 1, False
-    `;
-    fs.writeFileSync(vbsPath, vbsCode);
+WshShell.Run """" & "\${batPath}" & """", 0, False
+WScript.Sleep 5000
+Set fso = CreateObject("Scripting.FileSystemObject")
+On Error Resume Next
+fso.DeleteFile WScript.ScriptFullName
+    \`;
+    fs.writeFileSync(vbsPath, vbsCode, 'utf8');
 
-    try {
-      execSync(`wscript.exe "${vbsPath}"`, { stdio: 'ignore' });
-    } catch (e) {
-      console.error('[Updater] VBScript launch failed:', e);
-    }
+    // Fire the invisible swap script
+    const { execSync } = require('child_process');
+    execSync(\`wscript.exe "\${vbsPath}"\`);
 
-    // Clean up VBScript after a short delay
-    setTimeout(() => {
-      try { fs.unlinkSync(vbsPath); } catch (_) { }
-    }, 5000);
-
+    // Die immediately so the swap script can delete our executable
     app.exit(0);
 
   } catch (err) {
@@ -581,7 +559,7 @@ async function checkForUpdates() {
     const versionInfo = await fetchVersionInfo();
     const currentVersion = APP_VERSION;
 
-    console.log(`[Updater] Current: ${currentVersion} | Server: ${versionInfo.version}`);
+    console.log(`[Updater] Current: ${ currentVersion } | Server: ${ versionInfo.version } `);
 
     if (compareVersions(versionInfo.version, currentVersion) > 0) {
       console.log('[Updater] New version available! Starting update...');
@@ -619,7 +597,7 @@ function fetchVersionInfo() {
       }
 
       if (response.statusCode !== 200) {
-        reject(new Error(`Version check failed: HTTP ${response.statusCode}`));
+        reject(new Error(`Version check failed: HTTP ${ response.statusCode } `));
         return;
       }
 
@@ -652,7 +630,7 @@ function fetchVersionInfoFromUrl(url) {
     const httpModule = url.startsWith('https://') ? https : http;
     const request = httpModule.get(url, (response) => {
       if (response.statusCode !== 200) {
-        reject(new Error(`Version check redirect failed: HTTP ${response.statusCode}`));
+        reject(new Error(`Version check redirect failed: HTTP ${ response.statusCode } `));
         return;
       }
       let data = '';
