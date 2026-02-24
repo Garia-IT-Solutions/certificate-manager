@@ -1,6 +1,6 @@
 {
-    "version": "0.0.3",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.3/app.zip",
-    "sha256": "b7e8ea36dbe804e19a91abc3aca6c38bc0188049adfd70782a5fb719edb62531",
-    "releaseNotes": "Fix: Restored Keep Signed In session persistence."
+    "version": "0.0.4",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.4/app.zip",
+    "sha256": "f5c56f1706dee5d07a104a5e1b53afd530b4c8047e5a5038c3d824e89da235c1",
+    "releaseNotes": "Fix: Updater UI polishing and Windows Defender launch lock bypass."
 }

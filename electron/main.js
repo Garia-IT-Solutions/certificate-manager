@@ -360,7 +360,7 @@ async function performUpdate(versionInfo) {
         phase: 'download',
         percent: progress.percent,
         speed: progress.speed,
-        status: `Downloading... ${progress.downloaded} / ${progress.total}`,
+        status: `${progress.downloaded} / ${progress.total}`,
         version: versionInfo.version
       });
     });
@@ -493,20 +493,25 @@ async function performUpdate(versionInfo) {
     // Wait 2 seconds so user sees the success state
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Launch new version with clean environment
-    const cleanEnv = Object.assign({}, process.env);
-    delete cleanEnv.ELECTRON_RUN_AS_NODE;
-    delete cleanEnv.ELECTRON_NO_ASAR;
-    delete cleanEnv.ELECTRON_FORCE_IS_PACKAGED;
-    delete cleanEnv.ELECTRON_NO_ATTACH_CONSOLE;
+    // Launch new version with clean environment (bypassing Defender locks)
+    const vbsPath = path.join(os.tmpdir(), `marine-launcher-${Date.now()}.vbs`);
+    const vbsCode = `
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.CurrentDirectory = "${INSTALL_DIR}"
+WshShell.Run """${targetExe}""", 1, False
+    `;
+    fs.writeFileSync(vbsPath, vbsCode);
 
-    const child = spawn(targetExe, [], {
-      detached: true,
-      stdio: 'ignore',
-      cwd: INSTALL_DIR,
-      env: cleanEnv
-    });
-    child.unref();
+    try {
+      execSync(`wscript.exe "${vbsPath}"`, { stdio: 'ignore' });
+    } catch (e) {
+      console.error('[Updater] VBScript launch failed:', e);
+    }
+
+    // Clean up VBScript after a short delay
+    setTimeout(() => {
+      try { fs.unlinkSync(vbsPath); } catch (_) { }
+    }, 5000);
 
     app.exit(0);
 
