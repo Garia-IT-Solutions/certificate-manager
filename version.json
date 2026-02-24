@@ -1,6 +1,6 @@
 {
-    "version": "0.0.4",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.4/app.zip",
-    "sha256": "f5c56f1706dee5d07a104a5e1b53afd530b4c8047e5a5038c3d824e89da235c1",
-    "releaseNotes": "Fix: Updater UI polishing and Windows Defender launch lock bypass."
+    "version": "0.0.5",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.5/app.zip",
+    "sha256": "4ac58d47d1622194581de634e31f3748ffa5c2dd51aa88ebbf2df476199e09c3",
+    "releaseNotes": "Fix: Updater UI polishing and Windows Defender launch lock bypass confirmed."
 }
