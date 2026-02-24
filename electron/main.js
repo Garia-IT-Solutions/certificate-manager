@@ -448,7 +448,7 @@ async function performUpdate(versionInfo) {
     const batPath = path.join(os.tmpdir(), `marine-swap-${Date.now()}.bat`);
     const vbsPath = path.join(os.tmpdir(), `marine-swap-${Date.now()}.vbs`);
 
-    const batCode = \`@echo off
+    const batCode = `@echo off
 timeout /t 2 /nobreak > NUL
 taskkill /F /IM "MarineTracker Pro.exe" /T > NUL 2>&1
 taskkill /F /IM "backend-server.exe" /T > NUL 2>&1
@@ -456,39 +456,39 @@ taskkill /F /IM "MarineTracker.exe" /T > NUL 2>&1
 timeout /t 1 /nobreak > NUL
 
 :: Empty the old installation folder
-rd /s /q "\${INSTALL_DIR}"
+rd /s /q "${INSTALL_DIR}"
 timeout /t 1 /nobreak > NUL
-mkdir "\${INSTALL_DIR}"
+mkdir "${INSTALL_DIR}"
 
 :: Copy the new extracted files over seamlessly
-xcopy "\${actualSourceDir}\\*" "\${INSTALL_DIR}\\" /E /I /H /Y /Q > NUL
+xcopy "${actualSourceDir}\\*" "${INSTALL_DIR}\\" /E /I /H /Y /Q > NUL
 
 :: Launch the updated application
-start "" "\${targetExe}"
+start "" "${targetExe}"
 
 :: Cleanup leftover zip
-del /q "\${tempZip}" > NUL 2>&1
+del /q "${tempZip}" > NUL 2>&1
 
 :: Delete this bat file
 del "%~f0"
-\`;
+`;
 
     fs.writeFileSync(batPath, batCode, 'utf8');
 
     // VBS wrapper to run the BAT file completely invisibly (no black flash)
-    const vbsCode = \`
+    const vbsCode = `
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """" & "\${batPath}" & """", 0, False
+WshShell.Run """" & "${batPath}" & """", 0, False
 WScript.Sleep 5000
 Set fso = CreateObject("Scripting.FileSystemObject")
 On Error Resume Next
 fso.DeleteFile WScript.ScriptFullName
-    \`;
+    `;
     fs.writeFileSync(vbsPath, vbsCode, 'utf8');
 
     // Fire the invisible swap script
     const { execSync } = require('child_process');
-    execSync(\`wscript.exe "\${vbsPath}"\`);
+    execSync(`wscript.exe "${vbsPath}"`);
 
     // Die immediately so the swap script can delete our executable
     app.exit(0);
@@ -559,7 +559,7 @@ async function checkForUpdates() {
     const versionInfo = await fetchVersionInfo();
     const currentVersion = APP_VERSION;
 
-    console.log(`[Updater] Current: ${ currentVersion } | Server: ${ versionInfo.version } `);
+    console.log(`[Updater] Current: ${currentVersion} | Server: ${versionInfo.version} `);
 
     if (compareVersions(versionInfo.version, currentVersion) > 0) {
       console.log('[Updater] New version available! Starting update...');
@@ -597,7 +597,7 @@ function fetchVersionInfo() {
       }
 
       if (response.statusCode !== 200) {
-        reject(new Error(`Version check failed: HTTP ${ response.statusCode } `));
+        reject(new Error(`Version check failed: HTTP ${response.statusCode} `));
         return;
       }
 
@@ -630,7 +630,7 @@ function fetchVersionInfoFromUrl(url) {
     const httpModule = url.startsWith('https://') ? https : http;
     const request = httpModule.get(url, (response) => {
       if (response.statusCode !== 200) {
-        reject(new Error(`Version check redirect failed: HTTP ${ response.statusCode } `));
+        reject(new Error(`Version check redirect failed: HTTP ${response.statusCode} `));
         return;
       }
       let data = '';
