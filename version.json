@@ -1,6 +1,6 @@
 {
-    "version": "0.1.1",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.1.1/app.zip",
-    "sha256": "7cfc9913a296813f9963ddfe0d5d560d821a4155841dd72c92f66d1b26a29f5c",
-    "releaseNotes": "Emergency fix: Completely bypassed ASAR module resolution failure by replacing Node.js adm-zip with native Windows PowerShell extraction."
+    "version": "0.1.3",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.1.3/app.zip",
+    "sha256": "6c8adc9ef6ad6786adcd1268ea21800f6901d2675e557014052de8b453629b9f",
+    "releaseNotes": "Updated documents, certificates, and dashboard page titles."
 }
