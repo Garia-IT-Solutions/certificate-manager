@@ -389,9 +389,9 @@ async function performUpdate(versionInfo) {
     const extractTempDir = path.join(os.tmpdir(), `marine-extract-${Date.now()}`);
     fs.mkdirSync(extractTempDir, { recursive: true });
 
-    process.noAsar = true;
-
     const AdmZip = require('adm-zip');
+
+    process.noAsar = true;
     const zip = new AdmZip(tempZip);
     const entries = zip.getEntries();
     const total = entries.length;

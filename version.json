@@ -1,6 +1,6 @@
 {
-    "version": "0.0.9",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.0.9/app.zip",
-    "sha256": "fc405c7917544f11684f2dff9b033cf1f1a366c2805af19f6c8a1134fcabdfef",
-    "releaseNotes": "Emergency fix for missing adm-zip module."
+    "version": "0.1.0",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.1.0/app.zip",
+    "sha256": "82e5ec9297f725d253c72a840c6909db60512f64c635246180b94dd2ae211d7b",
+    "releaseNotes": "Emergency fix: Repositioned ASAR module resolution flag in main.js to prevent missing adm-zip dependency error during extraction."
 }
