@@ -1,6 +1,6 @@
 {
-    "version": "0.1.0",
-    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.1.0/app.zip",
-    "sha256": "82e5ec9297f725d253c72a840c6909db60512f64c635246180b94dd2ae211d7b",
-    "releaseNotes": "Emergency fix: Repositioned ASAR module resolution flag in main.js to prevent missing adm-zip dependency error during extraction."
+    "version": "0.1.1",
+    "url": "https://github.com/Garia-IT-Solutions/certificate-manager/releases/download/v0.1.1/app.zip",
+    "sha256": "7cfc9913a296813f9963ddfe0d5d560d821a4155841dd72c92f66d1b26a29f5c",
+    "releaseNotes": "Emergency fix: Completely bypassed ASAR module resolution failure by replacing Node.js adm-zip with native Windows PowerShell extraction."
 }

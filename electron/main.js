@@ -389,37 +389,18 @@ async function performUpdate(versionInfo) {
     const extractTempDir = path.join(os.tmpdir(), `marine-extract-${Date.now()}`);
     fs.mkdirSync(extractTempDir, { recursive: true });
 
-    const AdmZip = require('adm-zip');
-
-    process.noAsar = true;
-    const zip = new AdmZip(tempZip);
-    const entries = zip.getEntries();
-    const total = entries.length;
-    let count = 0;
-
-    for (const entry of entries) {
-      const fullPath = path.join(extractTempDir, entry.entryName);
-
-      if (entry.isDirectory) {
-        fs.mkdirSync(fullPath, { recursive: true });
-      } else {
-        const dir = path.dirname(fullPath);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(fullPath, entry.getData());
-      }
-
-      count++;
-      if (count % 5 === 0 || count === total) {
-        sendUpdateProgress({
-          phase: 'extract',
-          percent: Math.round((count / total) * 90),
-          status: entry.entryName,
-          version: versionInfo.version
-        });
-      }
+    // Extract using native Windows PowerShell (Bypasses ASAR module resolution issues)
+    try {
+      execSync(`powershell.exe -Command "Expand-Archive -Path '${tempZip}' -DestinationPath '${extractTempDir}' -Force"`, { stdio: 'pipe' });
+      sendUpdateProgress({
+        phase: 'extract', percent: 100,
+        status: 'Extraction complete.', version: versionInfo.version
+      });
+    } catch (err) {
+      console.error('[Updater] Native extraction failed:', err);
+      sendUpdateError('Extraction failed: ' + err.message);
+      return;
     }
-
-    process.noAsar = false;
 
     // Handle nested folder from zip extraction if necessary
     let actualSourceDir = extractTempDir;
